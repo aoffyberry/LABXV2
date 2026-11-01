@@ -1,0 +1,803 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LABX Insights Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f6f7f9; --panel:#ffffff; --panel-2:#f1f3f6; --text:#16181d; --muted:#626a77; --line:#e3e6eb;
+  --accent:#2f5bea; --accent-soft:#e7edfd; --org:#1f9d6b; --org-soft:#dff3ea; --paid:#e0702b; --paid-soft:#fbe9dc;
+  --fb:#1877f2; --ig:#c13584; --bad:#c62828; --bad-soft:#fde7e7; --warn:#8a6100; --warn-soft:#fff4d6;
+  --radius:12px; --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1115; --panel:#171a21; --panel-2:#1e222b; --text:#e8eaee; --muted:#9aa3b2; --line:#2a2f3a;
+    --accent:#7b9bff; --accent-soft:#1f2a4a; --org:#3cc58f; --org-soft:#163428; --paid:#ff9a55; --paid-soft:#3a2617;
+    --fb:#5b9dff; --ig:#e46aa9; --bad:#ff7b7b; --bad-soft:#3a1c1c; --warn:#f5c451; --warn-soft:#352b12;
+    --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1115; --panel:#171a21; --panel-2:#1e222b; --text:#e8eaee; --muted:#9aa3b2; --line:#2a2f3a;
+  --accent:#7b9bff; --accent-soft:#1f2a4a; --org:#3cc58f; --org-soft:#163428; --paid:#ff9a55; --paid-soft:#3a2617;
+  --fb:#5b9dff; --ig:#e46aa9; --bad:#ff7b7b; --bad-soft:#3a1c1c; --warn:#f5c451; --warn-soft:#352b12;
+  --shadow:none;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:14px/1.5 "IBM Plex Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1280px;margin:0 auto;padding:20px 16px 60px}
+header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+header.top h1{font-size:20px;margin:0;font-weight:700}
+header.top .sub{color:var(--muted);font-size:13px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:16px}
+.card h2{font-size:15px;margin:0 0 12px;font-weight:600}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label{font-size:12px;color:var(--muted);font-weight:500}
+input[type=text],input[type=password],input[type=date],select{
+  font:inherit;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-height:36px
+}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.grow{flex:1 1 320px}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--text);padding:7px 14px;min-height:36px;font-weight:500}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button:disabled{opacity:.5;cursor:not-allowed}
+button.ghost{background:transparent}
+.chk{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--line);border-radius:999px;background:var(--panel-2);font-size:13px;cursor:pointer;user-select:none}
+.chk input{margin:0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;border-right:1px solid var(--line);min-height:34px;padding:6px 12px;background:var(--panel)}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.hint{color:var(--muted);font-size:12px}
+.msg{padding:8px 12px;border-radius:8px;font-size:13px;margin-top:10px}
+.msg.err{background:var(--bad-soft);color:var(--bad)}
+.msg.warn{background:var(--warn-soft);color:var(--warn)}
+.msg.ok{background:var(--org-soft);color:var(--org)}
+details.log{margin-top:10px}
+details.log summary{cursor:pointer;color:var(--muted);font-size:12px}
+details.log pre{max-height:180px;overflow:auto;background:var(--panel-2);padding:8px;border-radius:8px;font-size:12px;white-space:pre-wrap;margin:6px 0 0}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px;overflow-x:auto}
+.tabs button{border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;padding:10px 14px;color:var(--muted);white-space:nowrap}
+.tabs button.on{color:var(--text);border-bottom-color:var(--accent);font-weight:600}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow)}
+.kpi .l{font-size:12px;color:var(--muted);font-weight:500}
+.kpi .v{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.25;margin-top:2px}
+.kpi .s{font-size:12px;color:var(--muted);margin-top:4px}
+.split{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--panel-2);margin-top:8px}
+.split i{display:block;height:100%}
+.split .o{background:var(--org)} .split .p{background:var(--paid)}
+.legend{display:flex;gap:12px;font-size:12px;color:var(--muted);margin-top:6px;flex-wrap:wrap}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:middle}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle;white-space:nowrap}
+th{background:var(--panel-2);font-weight:600;font-size:12px;color:var(--muted);position:sticky;top:0}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tr.total td{font-weight:700;background:var(--panel-2)}
+tbody tr:hover td{background:var(--panel-2)}
+td.cap{white-space:normal;min-width:220px;max-width:360px}
+.thumb{width:44px;height:44px;border-radius:6px;object-fit:cover;background:var(--panel-2);display:block}
+.badge{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:600}
+.b-fb{background:color-mix(in srgb,var(--fb) 15%,transparent);color:var(--fb)}
+.b-ig{background:color-mix(in srgb,var(--ig) 15%,transparent);color:var(--ig)}
+.b-org{background:var(--org-soft);color:var(--org)}
+.b-paid{background:var(--paid-soft);color:var(--paid)}
+.b-boost{background:var(--accent-soft);color:var(--accent)}
+.bar{height:6px;border-radius:3px;background:var(--panel-2);min-width:60px;overflow:hidden;display:flex}
+.bar i{display:block;height:100%}
+.sm{font-size:11px;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:860px){.grid2{grid-template-columns:1fr}}
+.empty{padding:40px 16px;text-align:center;color:var(--muted)}
+.hidden{display:none!important}
+a{color:var(--accent)}
+.toolbar{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px}
+.section-title{font-size:14px;font-weight:600;margin:20px 0 8px}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>LABX × ปักปากกา — Insights Dashboard</h1>
+      <div class="sub">Facebook Page + Instagram + Ads · ดึงตรงจาก Graph API ในเบราว์เซอร์ (token ไม่ถูกส่งไปที่อื่น)</div>
+    </div>
+    <div class="row">
+      <button class="ghost" id="themeBtn" title="สลับธีม">◐ ธีม</button>
+    </div>
+  </header>
+
+  <!-- CONNECT -->
+  <section class="card" id="connectCard">
+    <h2>1 · เชื่อมต่อ Facebook Graph API</h2>
+    <div class="row">
+      <div class="field grow">
+        <label for="token">Access Token (User / System User token ที่เข้าถึงเพจ LABX และ ปักปากกา)</label>
+        <input type="password" id="token" placeholder="EAAG..." autocomplete="off" spellcheck="false">
+      </div>
+      <div class="field" style="width:110px">
+        <label for="ver">API version</label>
+        <input type="text" id="ver" value="v24.0">
+      </div>
+      <button class="ghost" id="showTok" type="button">แสดง</button>
+      <button class="primary" id="connectBtn">เชื่อมต่อ</button>
+      <button id="demoBtn" title="ดูหน้าตา dashboard ด้วยข้อมูลจำลอง">ใช้ข้อมูลตัวอย่าง</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label class="chk"><input type="checkbox" id="remember"> จำ token ไว้ในเบราว์เซอร์นี้</label>
+      <span class="hint">Permission ที่ต้องมี: pages_show_list, pages_read_engagement, read_insights, instagram_basic, instagram_manage_insights, ads_read (ถ้าต้องการข้อมูล Paid)</span>
+    </div>
+    <div id="connectMsg"></div>
+  </section>
+
+  <!-- SETUP -->
+  <section class="card hidden" id="setupCard">
+    <h2>2 · เลือกเพจ / บัญชีโฆษณา / ช่วงเวลา</h2>
+    <div class="field" style="margin-bottom:12px">
+      <label>เพจ (Facebook + Instagram ที่ผูกไว้)</label>
+      <div class="chips" id="pageChips"></div>
+    </div>
+    <div class="field" style="margin-bottom:12px">
+      <label>บัญชีโฆษณา (สำหรับข้อมูล Paid Ads)</label>
+      <div class="chips" id="adChips"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label for="since">ตั้งแต่</label><input type="date" id="since"></div>
+      <div class="field"><label for="until">ถึง</label><input type="date" id="until"></div>
+      <div class="seg" id="presetSeg">
+        <button data-d="7">7 วัน</button><button data-d="28" class="on">28 วัน</button><button data-d="90">90 วัน</button>
+      </div>
+      <button class="primary" id="loadBtn">โหลดข้อมูล</button>
+    </div>
+    <div id="loadMsg"></div>
+    <details class="log"><summary>Log การเรียก API</summary><pre id="log"></pre></details>
+  </section>
+
+  <!-- DASHBOARD -->
+  <section id="dash" class="hidden">
+    <div class="toolbar card" style="margin-bottom:12px">
+      <div class="field"><label>Channel</label>
+        <div class="seg" id="chSeg"><button data-v="all" class="on">ทั้งหมด</button><button data-v="facebook">Facebook</button><button data-v="instagram">Instagram</button></div>
+      </div>
+      <div class="field"><label>Organic / Paid</label>
+        <div class="seg" id="typeSeg"><button data-v="all" class="on">รวม</button><button data-v="organic">Organic</button><button data-v="paid">Paid Ads</button></div>
+      </div>
+      <div class="field grow"><label>เพจ</label><div class="chips" id="fPageChips"></div></div>
+    </div>
+
+    <nav class="tabs" id="tabs">
+      <button data-t="overview" class="on">Content Performance</button>
+      <button data-t="demo">Demographics</button>
+      <button data-t="rank">Content Ranking</button>
+    </nav>
+
+    <!-- TAB 1 -->
+    <div id="tab-overview">
+      <div class="kpis" id="kpis"></div>
+      <div class="section-title">Breakdown by Page</div>
+      <div class="tbl-wrap"><table id="pageTbl"></table></div>
+      <p class="hint">Views = ยอดการแสดงผล (Views / Impressions) · Engagement = reactions + comments + shares (+ saves บน IG) · Paid = ข้อมูลจาก Ads Insights ของแอดที่ผูกกับโพสต์ · Organic = ยอดรวมของโพสต์ − ส่วนที่มาจากโฆษณา</p>
+    </div>
+
+    <!-- TAB 2 -->
+    <div id="tab-demo" class="hidden">
+      <div class="toolbar">
+        <div class="field"><label for="demoAcc">บัญชี</label><select id="demoAcc"></select></div>
+        <div class="field"><label for="demoSrc">กลุ่มผู้ชม</label>
+          <select id="demoSrc">
+            <option value="followers">Followers (ผู้ติดตาม)</option>
+            <option value="engaged">Engaged audience (IG, เดือนนี้)</option>
+            <option value="reached">Reached audience (IG, เดือนนี้)</option>
+            <option value="ads">Ads audience (reach จากโฆษณาในช่วงที่เลือก)</option>
+          </select>
+        </div>
+        <div class="field"><label for="locType">พื้นที่</label>
+          <select id="locType"><option value="city">เมือง / จังหวัด</option><option value="country">ประเทศ</option></select>
+        </div>
+      </div>
+      <div id="demoMsg"></div>
+      <div class="kpis" id="demoKpis"></div>
+      <div class="grid2">
+        <div>
+          <div class="section-title">อายุ × เพศ</div>
+          <div class="tbl-wrap"><table id="agTbl"></table></div>
+        </div>
+        <div>
+          <div class="section-title">พื้นที่ (Top 15)</div>
+          <div class="tbl-wrap"><table id="locTbl"></table></div>
+        </div>
+      </div>
+      <div class="section-title">Breakdown เปรียบเทียบทุกเพจ / ช่องทาง</div>
+      <div class="tbl-wrap"><table id="demoCmpTbl"></table></div>
+      <p class="hint">Facebook: Meta ยกเลิก metric ข้อมูลประชากรผู้ติดตามเพจ (page_fans_gender_age ฯลฯ) แล้ว ถ้าดึงไม่ได้ให้ใช้ "Ads audience" แทน · Instagram ต้องมีผู้ติดตาม ≥ 100 คนจึงจะมีข้อมูล</p>
+    </div>
+
+    <!-- TAB 3 -->
+    <div id="tab-rank" class="hidden">
+      <div class="toolbar">
+        <div class="field"><label>แสดง</label>
+          <div class="seg" id="topSeg"><button data-v="50" class="on">Top 50</button><button data-v="100">Top 100</button></div>
+        </div>
+        <div class="field"><label>เรียงตาม</label>
+          <div class="seg" id="sortSeg"><button data-v="views" class="on">Views</button><button data-v="eng">Engagement</button><button data-v="er">Eng. rate</button></div>
+        </div>
+        <button id="csvBtn">Export CSV</button>
+      </div>
+      <div class="tbl-wrap"><table id="rankTbl"></table></div>
+      <p class="hint">ใช้ตัวกรอง Channel / Organic-Paid / เพจ ด้านบน · "Ad-only" = dark post หรือโพสต์ที่สร้างก่อนช่วงวันที่แต่ยิงแอดในช่วงนี้</p>
+    </div>
+  </section>
+</div>
+
+<script>
+'use strict';
+/* ============================== STATE ============================== */
+const S = {
+  ver:'v24.0', token:'', demo:false,
+  pages:[], adAccounts:[], selPages:new Set(), selAds:new Set(),
+  since:null, until:null, items:[], adsLoaded:false,
+  adIndex:{},            // `${pageId}|${channel}` -> Map(actId -> Set(adId))
+  demoCache:new Map(),
+  f:{ch:'all', type:'all', pages:new Set()},
+  tab:'overview', top:50, sort:'views',
+};
+const PAGE_MATCH = /lab\s*x|ปักปากกา|pakpakka|pak\s*pakka/i;
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nf = new Intl.NumberFormat('en-US');
+const cf = new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:1});
+const fmt = n => (n==null||!isFinite(n)) ? '–' : nf.format(Math.round(n));
+const fmtC = n => (n==null||!isFinite(n)) ? '–' : cf.format(n);
+const pct = (a,b,d=2) => b ? (a/b*100).toFixed(d)+'%' : '–';
+const money = n => (n==null||!isFinite(n)) ? '–' : nf.format(Math.round(n*100)/100);
+const dstr = d => d ? new Date(d).toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'2-digit'}) : '–';
+const chLabel = c => c==='facebook' ? '<span class="badge b-fb">FB</span>' : '<span class="badge b-ig">IG</span>';
+
+function log(s){ const el=$('#log'); el.textContent += `[${new Date().toLocaleTimeString()}] ${s}\n`; el.scrollTop=el.scrollHeight; }
+function msg(sel, text, kind='ok'){ $(sel).innerHTML = text ? `<div class="msg ${kind}">${text}</div>` : ''; }
+
+/* ============================== GRAPH API ============================== */
+class GraphError extends Error{ constructor(m,code){super(m);this.code=code;} }
+async function g(path, params={}, token=S.token){
+  const u = new URL(`https://graph.facebook.com/${S.ver}/${path}`);
+  for (const [k,v] of Object.entries(params)) if (v!=null && v!=='') u.searchParams.set(k, typeof v==='object' ? JSON.stringify(v) : v);
+  u.searchParams.set('access_token', token);
+  return fetchJson(u.toString());
+}
+async function fetchJson(url){
+  let r;
+  try { r = await fetch(url); } catch(e){ throw new GraphError('Network error: '+e.message); }
+  const j = await r.json().catch(()=>({}));
+  if (!r.ok || j.error) throw new GraphError(j.error?.message || `HTTP ${r.status}`, j.error?.code);
+  return j;
+}
+async function gAll(path, params, token=S.token, {maxPages=40, stop}={}){
+  const out=[]; let j = await g(path, params, token), n=0;
+  for(;;){
+    const d = j.data || []; out.push(...d); n++;
+    if (stop && stop(d)) break;
+    if (!j.paging?.next || n>=maxPages) break;
+    j = await fetchJson(j.paging.next);
+  }
+  return out;
+}
+async function pool(items, n, fn){
+  let i=0; const workers = Array.from({length:Math.min(n,items.length)}, async ()=>{ while(i<items.length){ const k=i++; await fn(items[k],k); } });
+  await Promise.all(workers);
+}
+// insight helpers — tolerate both `values` and `total_value` shapes
+function mval(m){
+  if (!m) return null;
+  if (m.total_value && typeof m.total_value.value==='number') return m.total_value.value;
+  const v = m.values; if (!v || !v.length) return null;
+  const x = v[v.length-1].value;
+  if (typeof x==='number') return x;
+  if (x && typeof x==='object') return Object.values(x).reduce((a,b)=>a+(+b||0),0);
+  return null;
+}
+function adsPart(m){ // value attributed to ads from an is_from_ads breakdown, or null
+  if (!m) return null;
+  const b = m.total_value?.breakdowns?.[0];
+  if (b?.results) { let s=0; for (const r of b.results){ const dv=String(r.dimension_values?.[0]).toLowerCase(); if (dv==='true'||dv==='1'||dv==='paid') s+=+r.value||0; } return s; }
+  const x = m.values?.[m.values.length-1]?.value;
+  if (x && typeof x==='object'){ let s=0; for (const [k,v] of Object.entries(x)) if (/^(true|1|paid)$/i.test(k)) s+=+v||0; return s; }
+  return null;
+}
+const byName = (data) => Object.fromEntries((data||[]).map(m=>[m.name,m]));
+
+/* ============================== CONNECT ============================== */
+async function connect(){
+  S.token = $('#token').value.trim(); S.ver = $('#ver').value.trim() || 'v24.0'; S.demo=false;
+  if (!S.token){ msg('#connectMsg','กรุณาใส่ Access Token','err'); return; }
+  try { if ($('#remember').checked) localStorage.setItem('labx_tok', S.token); else localStorage.removeItem('labx_tok'); localStorage.setItem('labx_ver', S.ver); } catch(e){}
+  $('#connectBtn').disabled = true; msg('#connectMsg','<span class="spinner"></span>กำลังตรวจสอบ token…','warn');
+  try{
+    let accounts = [];
+    try{
+      accounts = await gAll('me/accounts',{fields:'id,name,access_token,followers_count,instagram_business_account{id,username,followers_count}',limit:100});
+    }catch(e){ log('me/accounts: '+e.message); }
+    if (!accounts.length){ // maybe a Page token
+      const me = await g('me',{fields:'id,name,instagram_business_account{id,username,followers_count}'});
+      if (me.instagram_business_account !== undefined || me.id) accounts = [{...me, access_token:S.token}];
+    }
+    S.pages = accounts.map(a=>({id:a.id, name:a.name, token:a.access_token||S.token, ig:a.instagram_business_account||null}));
+    try{
+      S.adAccounts = await gAll('me/adaccounts',{fields:'id,name,account_status,currency',limit:200});
+    }catch(e){ S.adAccounts=[]; log('me/adaccounts: '+e.message); }
+    let sel = S.pages.filter(p=>PAGE_MATCH.test(p.name));
+    if (!sel.length) sel = S.pages;
+    S.selPages = new Set(sel.map(p=>p.id));
+    S.selAds = new Set(S.adAccounts.filter(a=>a.account_status===1).map(a=>a.id));
+    renderSetup();
+    msg('#connectMsg',`เชื่อมต่อสำเร็จ · พบ ${S.pages.length} เพจ, ${S.adAccounts.length} บัญชีโฆษณา`,'ok');
+  }catch(e){
+    msg('#connectMsg','เชื่อมต่อไม่สำเร็จ: '+esc(e.message),'err');
+  }finally{ $('#connectBtn').disabled=false; }
+}
+
+function renderSetup(){
+  $('#setupCard').classList.remove('hidden');
+  $('#pageChips').innerHTML = S.pages.map(p=>`<label class="chk"><input type="checkbox" data-id="${esc(p.id)}" ${S.selPages.has(p.id)?'checked':''}> ${esc(p.name)} ${p.ig?`<span class="sm">+ IG @${esc(p.ig.username||p.ig.id)}</span>`:'<span class="sm">(ไม่มี IG)</span>'}</label>`).join('') || '<span class="hint">ไม่พบเพจ</span>';
+  $('#adChips').innerHTML = S.adAccounts.map(a=>`<label class="chk"><input type="checkbox" data-id="${esc(a.id)}" ${S.selAds.has(a.id)?'checked':''}> ${esc(a.name)} <span class="sm">${esc(a.id)}</span></label>`).join('') || '<span class="hint">ไม่พบบัญชีโฆษณา (ต้องมี permission ads_read) — จะแสดงเฉพาะ Organic และส่วน paid ที่ Page Insights ให้มา</span>';
+  $('#pageChips').onchange = e=>{ const id=e.target.dataset.id; e.target.checked?S.selPages.add(id):S.selPages.delete(id); };
+  $('#adChips').onchange = e=>{ const id=e.target.dataset.id; e.target.checked?S.selAds.add(id):S.selAds.delete(id); };
+}
+function setPreset(days){
+  const u = new Date(); u.setDate(u.getDate()-1);
+  const s = new Date(u); s.setDate(s.getDate()-days+1);
+  $('#until').value = u.toISOString().slice(0,10); $('#since').value = s.toISOString().slice(0,10);
+}
+
+/* ============================== LOAD CONTENT ============================== */
+const FB_VIEW_TRIES = [
+  {metric:'post_media_view', breakdown:'is_from_ads'},
+  {metric:'post_media_view'},
+  {metric:'post_impressions,post_impressions_paid'},
+];
+let fbViewStart = 0;
+async function fbPostViews(id, tok){
+  let lastErr;
+  for (let i=fbViewStart;i<FB_VIEW_TRIES.length;i++){
+    try{
+      const j = await g(`${id}/insights`, FB_VIEW_TRIES[i], tok);
+      const m = byName(j.data);
+      if (i<2){ const mv=m.post_media_view; const v=mval(mv); if (v!=null) return {views:v, fromAds: i===0?adsPart(mv):null}; }
+      else { const v=mval(m.post_impressions); if (v!=null) return {views:v, fromAds:mval(m.post_impressions_paid)}; }
+    }catch(e){ lastErr=e; if (e.code===100 && i===fbViewStart && i<FB_VIEW_TRIES.length-1) { fbViewStart=i+1; log(`FB views: metric "${FB_VIEW_TRIES[i].metric}" ใช้ไม่ได้ → ลองตัวถัดไป`); } }
+  }
+  if (lastErr) log(`FB insights ${id}: ${lastErr.message}`);
+  return {views:0, fromAds:null};
+}
+const IG_TRIES = ['views,reach,total_interactions,likes,comments,saved,shares','views,reach,total_interactions','reach,total_interactions','impressions,reach,engagement'];
+async function igMediaInsights(id, tok){
+  for (const metric of IG_TRIES){
+    try{ const j = await g(`${id}/insights`,{metric},tok); return byName(j.data); }catch(e){ /* try smaller set */ }
+  }
+  return {};
+}
+function newItem(o){
+  return Object.assign({caption:'',thumb:'',permalink:'',created:null,mediaType:'',adOnly:false,
+    api:null, paid:{views:0,eng:0,spend:0,reach:0,ads:new Set()}, org:{views:0,eng:0}, tot:{views:0,eng:0}}, o);
+}
+
+async function loadData(){
+  S.since = $('#since').value; S.until = $('#until').value;
+  if (!S.since || !S.until){ msg('#loadMsg','เลือกช่วงวันที่','err'); return; }
+  const pages = S.pages.filter(p=>S.selPages.has(p.id));
+  if (!pages.length){ msg('#loadMsg','เลือกอย่างน้อย 1 เพจ','err'); return; }
+  $('#loadBtn').disabled = true; S.demoCache.clear(); S.adIndex={};
+  const status = t => msg('#loadMsg',`<span class="spinner"></span>${esc(t)}`,'warn');
+  const sinceTs = Math.floor(new Date(S.since+'T00:00:00').getTime()/1000);
+  const untilTs = Math.floor(new Date(S.until+'T23:59:59').getTime()/1000);
+  const map = new Map(); const warns=[];
+  try{
+    for (const p of pages){
+      // ---------- Facebook posts ----------
+      status(`${p.name}: ดึงโพสต์ Facebook…`);
+      try{
+        const posts = await gAll(`${p.id}/posts`,{fields:'id,message,created_time,permalink_url,full_picture,status_type,reactions.summary(total_count).limit(0),comments.summary(total_count).limit(0),shares',since:sinceTs,until:untilTs,limit:100},p.token);
+        log(`${p.name}: FB posts ${posts.length}`);
+        let done=0;
+        await pool(posts, 6, async post=>{
+          const v = await fbPostViews(post.id, p.token);
+          const eng = (post.reactions?.summary?.total_count||0)+(post.comments?.summary?.total_count||0)+(post.shares?.count||0);
+          map.set('fb:'+post.id, newItem({key:'fb:'+post.id,id:post.id,pageId:p.id,pageName:p.name,channel:'facebook',caption:post.message||'',
+            thumb:post.full_picture||'',permalink:post.permalink_url||'',created:post.created_time,mediaType:post.status_type||'',api:{views:v.views,fromAds:v.fromAds,eng}}));
+          if (++done%10===0) status(`${p.name}: FB insights ${done}/${posts.length}`);
+        });
+      }catch(e){ warns.push(`${p.name} FB: ${e.message}`); log(`${p.name} FB: ${e.message}`); }
+      // ---------- Instagram media ----------
+      if (p.ig){
+        status(`${p.name}: ดึงโพสต์ Instagram…`);
+        try{
+          const sinceMs = sinceTs*1000, untilMs = untilTs*1000;
+          const media = (await gAll(`${p.ig.id}/media`,{fields:'id,caption,media_type,media_product_type,timestamp,permalink,thumbnail_url,media_url,like_count,comments_count',limit:50},p.token,
+            {maxPages:60, stop:d=> d.length && new Date(d[d.length-1].timestamp).getTime() < sinceMs}))
+            .filter(m=>{ const t=new Date(m.timestamp).getTime(); return t>=sinceMs && t<=untilMs; });
+          log(`${p.name}: IG media ${media.length}`);
+          let done=0;
+          await pool(media, 6, async m=>{
+            const ins = await igMediaInsights(m.id, p.token);
+            const views = mval(ins.views) ?? mval(ins.impressions) ?? mval(ins.reach) ?? 0;
+            const eng = mval(ins.total_interactions) ?? mval(ins.engagement) ?? ((m.like_count||0)+(m.comments_count||0)+(mval(ins.saved)||0)+(mval(ins.shares)||0));
+            map.set('ig:'+m.id, newItem({key:'ig:'+m.id,id:m.id,pageId:p.id,pageName:p.name,channel:'instagram',caption:m.caption||'',
+              thumb:m.thumbnail_url||(m.media_type!=='VIDEO'?m.media_url:'')||'',permalink:m.permalink||'',created:m.timestamp,
+              mediaType:(m.media_product_type==='REELS'?'REELS':m.media_type)||'',api:{views,fromAds:null,eng}}));
+            if (++done%10===0) status(`${p.name}: IG insights ${done}/${media.length}`);
+          });
+        }catch(e){ warns.push(`${p.name} IG: ${e.message}`); log(`${p.name} IG: ${e.message}`); }
+      }
+    }
+    // ---------- Paid (Ads Insights) ----------
+    S.adsLoaded = false;
+    const pageById = Object.fromEntries(pages.map(p=>[p.id,p]));
+    for (const act of S.adAccounts.filter(a=>S.selAds.has(a.id))){
+      status(`Ads: ${act.name}…`);
+      try{
+        const rows = await gAll(`${act.id}/insights`,{level:'ad',breakdowns:'publisher_platform',fields:'ad_id,ad_name,impressions,reach,spend,actions',
+          time_range:{since:S.since,until:S.until},limit:500});
+        log(`Ads ${act.name}: ${rows.length} rows`);
+        const adIds = [...new Set(rows.map(r=>r.ad_id))];
+        const creatives = {};
+        for (let i=0;i<adIds.length;i+=50){
+          const j = await g('',{ids:adIds.slice(i,i+50).join(','),fields:'creative{effective_object_story_id,effective_instagram_media_id,thumbnail_url,body,title,instagram_permalink_url}'});
+          for (const [id,o] of Object.entries(j)) creatives[id]=o.creative||{};
+        }
+        for (const r of rows){
+          const c = creatives[r.ad_id]||{};
+          const story = c.effective_object_story_id || '';
+          const pageId = story.split('_')[0];
+          const p = pageById[pageId]; if (!p) continue;
+          const ch = r.publisher_platform==='instagram' ? 'instagram' : 'facebook';
+          let key;
+          if (ch==='instagram') key = c.effective_instagram_media_id ? 'ig:'+c.effective_instagram_media_id : 'igad:'+story;
+          else key = 'fb:'+story;
+          let it = map.get(key);
+          if (!it){
+            it = newItem({key,id:ch==='instagram'?(c.effective_instagram_media_id||story):story,pageId,pageName:p.name,channel:ch,adOnly:true,
+              caption:c.body||c.title||r.ad_name||'',thumb:c.thumbnail_url||'',
+              permalink: ch==='instagram' ? (c.instagram_permalink_url||'') : `https://www.facebook.com/${story}`});
+            map.set(key,it);
+          }
+          const a = r.actions||[]; const act_ = t => +(a.find(x=>x.action_type===t)?.value||0);
+          it.paid.views += +r.impressions||0;
+          it.paid.reach += +r.reach||0;
+          it.paid.spend += +r.spend||0;
+          it.paid.eng += act_('post_reaction')+act_('comment')+act_('post')+act_('onsite_conversion.post_save');
+          it.paid.ads.add(r.ad_id);
+          const k = `${pageId}|${ch}`; (S.adIndex[k] ||= new Map());
+          if (!S.adIndex[k].has(act.id)) S.adIndex[k].set(act.id,new Set());
+          S.adIndex[k].get(act.id).add(r.ad_id);
+        }
+        S.adsLoaded = true;
+      }catch(e){ warns.push(`Ads ${act.name}: ${e.message}`); log(`Ads ${act.name}: ${e.message}`); }
+    }
+    S.items = finalize([...map.values()]);
+    S.f.pages = new Set(pages.map(p=>p.id));
+    msg('#loadMsg',`โหลดเสร็จ · ${S.items.length} คอนเทนต์`+(warns.length?`<br>⚠ ${warns.map(esc).join('<br>⚠ ')}`:''), warns.length?'warn':'ok');
+    showDash();
+  }catch(e){
+    msg('#loadMsg','โหลดข้อมูลไม่สำเร็จ: '+esc(e.message),'err');
+  }finally{ $('#loadBtn').disabled=false; }
+}
+
+function finalize(items){
+  for (const it of items){
+    const p = it.paid;
+    if (it.api){
+      if (!S.adsLoaded && it.api.fromAds!=null) p.views = it.api.fromAds;
+      it.org.views = it.api.fromAds!=null ? Math.max(0, it.api.views - it.api.fromAds) : Math.max(0, it.api.views - p.views);
+      it.org.eng = Math.max(0, it.api.eng - p.eng);
+    }
+    it.tot.views = it.org.views + p.views;
+    it.tot.eng = it.org.eng + p.eng;
+    it.isPaid = p.views>0 || p.spend>0;
+  }
+  return items;
+}
+
+/* ============================== FILTERS & VIEWS ============================== */
+function filtered(){
+  return S.items.filter(it => S.f.pages.has(it.pageId) && (S.f.ch==='all' || it.channel===S.f.ch));
+}
+function metricOf(it, type){ return type==='organic' ? it.org : type==='paid' ? it.paid : it.tot; }
+function inType(it, type){ return type==='organic' ? !it.adOnly : type==='paid' ? it.isPaid : true; }
+
+function showDash(){
+  $('#dash').classList.remove('hidden');
+  const pages = S.pages.filter(p=>S.f.pages.has(p.id));
+  $('#fPageChips').innerHTML = pages.map(p=>`<label class="chk"><input type="checkbox" data-id="${esc(p.id)}" checked> ${esc(p.name)}</label>`).join('');
+  $('#fPageChips').onchange = e=>{ const id=e.target.dataset.id; e.target.checked?S.f.pages.add(id):S.f.pages.delete(id); render(); };
+  buildDemoAccounts();
+  render();
+}
+function render(){
+  if (S.tab==='overview') renderOverview();
+  else if (S.tab==='demo') renderDemo();
+  else renderRank();
+}
+
+/* ---------- TAB 1: Overview ---------- */
+function agg(list){
+  const a = {n:0,nOrg:0,nPaid:0,ov:0,pv:0,oe:0,pe:0,spend:0};
+  for (const it of list){ a.n++; if(!it.adOnly)a.nOrg++; if(it.isPaid)a.nPaid++; a.ov+=it.org.views; a.pv+=it.paid.views; a.oe+=it.org.eng; a.pe+=it.paid.eng; a.spend+=it.paid.spend; }
+  a.tv=a.ov+a.pv; a.te=a.oe+a.pe; return a;
+}
+function splitBar(o,p){ const t=o+p||1; return `<div class="split"><i class="o" style="width:${o/t*100}%"></i><i class="p" style="width:${p/t*100}%"></i></div>`; }
+function renderOverview(){
+  const t = S.f.type; const list = filtered().filter(it=>inType(it,t)); const a = agg(list);
+  const V = t==='organic'?a.ov : t==='paid'?a.pv : a.tv;
+  const E = t==='organic'?a.oe : t==='paid'?a.pe : a.te;
+  const N = t==='organic'?a.nOrg : t==='paid'?a.nPaid : a.n;
+  let html = `
+    <div class="kpi"><div class="l">Views ${t==='all'?'(รวม)':t==='organic'?'(Organic)':'(Paid)'}</div><div class="v">${fmtC(V)}</div><div class="s">${fmt(V)}</div>
+      ${t==='all'?splitBar(a.ov,a.pv)+`<div class="legend"><span>Organic ${fmtC(a.ov)} (${pct(a.ov,a.tv,0)})</span><span>Paid ${fmtC(a.pv)} (${pct(a.pv,a.tv,0)})</span></div>`:''}</div>
+    <div class="kpi"><div class="l">Engagement ${t==='all'?'(รวม)':t==='organic'?'(Organic)':'(Paid)'}</div><div class="v">${fmtC(E)}</div><div class="s">${fmt(E)}</div>
+      ${t==='all'?splitBar(a.oe,a.pe)+`<div class="legend"><span>Organic ${fmtC(a.oe)} (${pct(a.oe,a.te,0)})</span><span>Paid ${fmtC(a.pe)} (${pct(a.pe,a.te,0)})</span></div>`:''}</div>
+    <div class="kpi"><div class="l">Engagement rate</div><div class="v">${pct(E,V)}</div><div class="s">Engagement ÷ Views</div></div>
+    <div class="kpi"><div class="l">จำนวนคอนเทนต์</div><div class="v">${fmt(N)}</div><div class="s">Organic ${fmt(a.nOrg)} · ยิงแอด ${fmt(a.nPaid)}</div></div>`;
+  if (t!=='organic') html += `<div class="kpi"><div class="l">Ad spend</div><div class="v">${fmtC(a.spend)}</div><div class="s">CPE ${a.pe?money(a.spend/a.pe):'–'} · CPM ${a.pv?money(a.spend/a.pv*1000):'–'}</div></div>`;
+  $('#kpis').innerHTML = html;
+
+  // breakdown rows: page × channel
+  const groups = new Map();
+  for (const it of list){ const k=`${it.pageId}|${it.channel}`; if(!groups.has(k)) groups.set(k,{pageName:it.pageName,channel:it.channel,list:[]}); groups.get(k).list.push(it); }
+  const rows = [...groups.values()].map(gr=>({...gr, a:agg(gr.list)})).sort((x,y)=>x.pageName.localeCompare(y.pageName)||x.channel.localeCompare(y.channel));
+  const maxV = Math.max(1,...rows.map(r=>r.a.tv));
+  let head, rowFn;
+  if (t==='all'){
+    head = `<tr><th>เพจ</th><th>Channel</th><th class="n">คอนเทนต์</th><th class="n">Organic Views</th><th class="n">Paid Views</th><th class="n">Total Views</th><th>สัดส่วน</th><th class="n">Organic Eng.</th><th class="n">Paid Eng.</th><th class="n">Total Eng.</th><th class="n">ER</th><th class="n">Spend</th></tr>`;
+    rowFn = (name,ch,a,cls='') => `<tr class="${cls}"><td>${name}</td><td>${ch}</td><td class="n">${fmt(a.n)}</td><td class="n">${fmt(a.ov)}</td><td class="n">${fmt(a.pv)}</td><td class="n">${fmt(a.tv)}</td>
+      <td><div class="bar" style="width:${Math.min(120,Math.max(8,a.tv/maxV*120))}px"><i style="background:var(--org);width:${pct(a.ov,a.tv||1,4)}"></i><i style="background:var(--paid);width:${pct(a.pv,a.tv||1,4)}"></i></div></td>
+      <td class="n">${fmt(a.oe)}</td><td class="n">${fmt(a.pe)}</td><td class="n">${fmt(a.te)}</td><td class="n">${pct(a.te,a.tv)}</td><td class="n">${a.spend?money(a.spend):'–'}</td></tr>`;
+  } else {
+    const paid = t==='paid';
+    head = `<tr><th>เพจ</th><th>Channel</th><th class="n">คอนเทนต์</th><th class="n">Views</th><th class="n">Engagement</th><th class="n">ER</th><th class="n">Avg Views / คอนเทนต์</th><th class="n">Avg Eng. / คอนเทนต์</th>${paid?'<th class="n">Spend</th><th class="n">CPM</th><th class="n">CPE</th>':''}</tr>`;
+    rowFn = (name,ch,a,cls='') => { const v=paid?a.pv:a.ov, e=paid?a.pe:a.oe, n=paid?a.nPaid:a.nOrg;
+      return `<tr class="${cls}"><td>${name}</td><td>${ch}</td><td class="n">${fmt(n)}</td><td class="n">${fmt(v)}</td><td class="n">${fmt(e)}</td><td class="n">${pct(e,v)}</td><td class="n">${n?fmt(v/n):'–'}</td><td class="n">${n?fmt(e/n):'–'}</td>
+      ${paid?`<td class="n">${money(a.spend)}</td><td class="n">${v?money(a.spend/v*1000):'–'}</td><td class="n">${e?money(a.spend/e):'–'}</td>`:''}</tr>`; };
+  }
+  const body = rows.map(r=>rowFn(esc(r.pageName), chLabel(r.channel), r.a)).join('');
+  $('#pageTbl').innerHTML = rows.length ? `<thead>${head}</thead><tbody>${body}${rowFn('รวม','',a,'total')}</tbody>` : `<tbody><tr><td class="empty">ไม่มีข้อมูลตามตัวกรอง</td></tr></tbody>`;
+}
+
+/* ---------- TAB 3: Ranking ---------- */
+function rankList(){
+  const t=S.f.type;
+  const list = filtered().filter(it=>inType(it,t)).map(it=>{ const m=metricOf(it,t); return {it, v:m.views, e:m.eng, er:m.views?m.eng/m.views:0}; });
+  const key = S.sort==='views'?'v':S.sort==='eng'?'e':'er';
+  list.sort((a,b)=>b[key]-a[key] || b.v-a.v);
+  return list.slice(0,S.top);
+}
+function typeBadge(it){ return it.adOnly ? '<span class="badge b-paid">Ad-only</span>' : it.isPaid ? '<span class="badge b-boost">Organic + Ads</span>' : '<span class="badge b-org">Organic</span>'; }
+function renderRank(){
+  const t=S.f.type, rows=rankList(), paid=t!=='organic';
+  const head = `<tr><th class="n">#</th><th></th><th>เพจ</th><th>Ch</th><th>วันที่</th><th>คอนเทนต์</th><th>ประเภท</th><th class="n">Views</th><th class="n">Engagement</th><th class="n">ER</th>${paid?'<th class="n">Spend</th>':''}<th></th></tr>`;
+  const body = rows.map((r,i)=>{ const it=r.it;
+    const sub = t==='all' && it.isPaid ? (o,p)=>`<div class="sm">O ${fmtC(o)} · P ${fmtC(p)}</div>` : ()=>'';
+    return `<tr><td class="n">${i+1}</td>
+      <td>${it.thumb?`<img class="thumb" loading="lazy" referrerpolicy="no-referrer" src="${esc(it.thumb)}" alt="">`:'<div class="thumb"></div>'}</td>
+      <td>${esc(it.pageName)}</td><td>${chLabel(it.channel)}</td><td>${dstr(it.created)}</td>
+      <td class="cap">${esc((it.caption||'(ไม่มีแคปชัน)').slice(0,110))}${(it.caption||'').length>110?'…':''}<div class="sm">${esc(it.mediaType)}</div></td>
+      <td>${typeBadge(it)}</td>
+      <td class="n">${fmt(r.v)}${sub(it.org.views,it.paid.views)}</td>
+      <td class="n">${fmt(r.e)}${sub(it.org.eng,it.paid.eng)}</td>
+      <td class="n">${(r.er*100).toFixed(2)}%</td>
+      ${paid?`<td class="n">${it.paid.spend?money(it.paid.spend):'–'}</td>`:''}
+      <td>${it.permalink?`<a href="${esc(it.permalink)}" target="_blank" rel="noopener">เปิด ↗</a>`:''}</td></tr>`; }).join('');
+  $('#rankTbl').innerHTML = rows.length ? `<thead>${head}</thead><tbody>${body}</tbody>` : `<tbody><tr><td class="empty">ไม่มีข้อมูลตามตัวกรอง</td></tr></tbody>`;
+}
+function exportCsv(){
+  const t=S.f.type, rows=rankList();
+  const h=['rank','page','channel','date','type','views','engagement','engagement_rate','organic_views','paid_views','organic_eng','paid_eng','spend','caption','permalink'];
+  const q = s => `"${String(s??'').replace(/"/g,'""').replace(/\s+/g,' ')}"`;
+  const lines=[h.join(',')].concat(rows.map((r,i)=>{const it=r.it; return [i+1,q(it.pageName),it.channel,it.created?it.created.slice(0,10):'',it.adOnly?'ad-only':it.isPaid?'organic+ads':'organic',
+    Math.round(r.v),Math.round(r.e),(r.er*100).toFixed(2),Math.round(it.org.views),Math.round(it.paid.views),Math.round(it.org.eng),Math.round(it.paid.eng),it.paid.spend.toFixed(2),q(it.caption),q(it.permalink)].join(',');}));
+  const blob = new Blob(['﻿'+lines.join('\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`content-top${S.top}-${S.sort}-${t}-${S.since}_${S.until}.csv`; a.click(); URL.revokeObjectURL(a.href);
+}
+
+/* ---------- TAB 2: Demographics ---------- */
+const AGES = ['13-17','18-24','25-34','35-44','45-54','55-64','65+'];
+const normG = g => { g=String(g).toLowerCase(); return g==='f'||g==='female'?'F':g==='m'||g==='male'?'M':'U'; };
+function demoAccounts(){
+  const out=[];
+  for (const p of S.pages.filter(p=>S.f.pages.has(p.id))){
+    if (S.f.ch!=='instagram') out.push({key:`${p.id}|facebook`,page:p,channel:'facebook',label:`${p.name} · Facebook`});
+    if (p.ig && S.f.ch!=='facebook') out.push({key:`${p.id}|instagram`,page:p,channel:'instagram',label:`${p.name} · Instagram`});
+  }
+  return out;
+}
+function buildDemoAccounts(){
+  const cur = $('#demoAcc').value; const accs = demoAccounts();
+  $('#demoAcc').innerHTML = accs.map(a=>`<option value="${esc(a.key)}">${esc(a.label)}</option>`).join('');
+  if (accs.some(a=>a.key===cur)) $('#demoAcc').value=cur;
+}
+async function fetchDemo(acc, src, loc){
+  const ck = `${acc.key}|${src}|${loc}`;
+  if (S.demoCache.has(ck)) return S.demoCache.get(ck);
+  const pr = (async()=>{
+    if (S.demo) return fakeDemo(acc, src, loc);
+    const res = {ag:[], loc:[], note:''};
+    if (src==='ads'){
+      const idx = S.adIndex[acc.key];
+      if (!idx || !idx.size) throw new Error('ไม่มีแอดที่ผูกกับบัญชีนี้ในช่วงวันที่ที่เลือก');
+      for (const [act, ids] of idx){
+        const list=[...ids];
+        for (let i=0;i<list.length;i+=100){
+          const base = {level:'account',fields:'reach,impressions',time_range:{since:S.since,until:S.until},limit:500};
+          const flt = [{field:'ad.id',operator:'IN',value:list.slice(i,i+100)}];
+          const run = async (breakdowns)=>{
+            try{ return await gAll(`${act}/insights`,{...base,breakdowns,filtering:[...flt,{field:'publisher_platform',operator:'IN',value:[acc.channel]}]}); }
+            catch(e){ res.note='รวมทุก placement (กรอง platform ไม่ได้)'; return gAll(`${act}/insights`,{...base,breakdowns,filtering:flt}); }
+          };
+          for (const r of await run('age,gender')) res.ag.push({age:r.age,g:normG(r.gender),v:+r.reach||0});
+          for (const r of await run(loc==='city'?'region':'country')) res.loc.push({name:loc==='city'?r.region:r.country,v:+r.reach||0});
+        }
+      }
+      res.unit='reach';
+      return res;
+    }
+    if (acc.channel==='facebook'){
+      if (src!=='followers') throw new Error('Facebook Page รองรับเฉพาะ Followers (legacy) และ Ads audience');
+      const tok = acc.page.token; let ok=false;
+      try{ const j=await g(`${acc.page.id}/insights`,{metric:'page_fans_gender_age',period:'lifetime'},tok); const v=j.data?.[0]?.values?.slice(-1)[0]?.value||{};
+        for (const [k,n] of Object.entries(v)){ const [gg,age]=k.split('.'); res.ag.push({age,g:normG(gg),v:+n}); } ok = ok || Object.keys(v).length>0; }catch(e){ log('page_fans_gender_age: '+e.message); }
+      try{ const j=await g(`${acc.page.id}/insights`,{metric:loc==='city'?'page_fans_city':'page_fans_country',period:'lifetime'},tok); const v=j.data?.[0]?.values?.slice(-1)[0]?.value||{};
+        for (const [k,n] of Object.entries(v)) res.loc.push({name:k,v:+n}); ok = ok || Object.keys(v).length>0; }catch(e){ log('page_fans_'+loc+': '+e.message); }
+      if (!ok) throw new Error('Meta ยกเลิก metric ข้อมูลประชากรผู้ติดตามเพจ Facebook แล้ว — เลือก "Ads audience" แทน');
+      res.unit='followers'; return res;
+    }
+    // Instagram
+    const metric = {followers:'follower_demographics',engaged:'engaged_audience_demographics',reached:'reached_audience_demographics'}[src];
+    const p = {metric,period:'lifetime',metric_type:'total_value'}; if (src!=='followers') p.timeframe='this_month';
+    const tok = acc.page.token;
+    const j1 = await g(`${acc.page.ig.id}/insights`,{...p,breakdown:'age,gender'},tok);
+    for (const r of j1.data?.[0]?.total_value?.breakdowns?.[0]?.results||[]) res.ag.push({age:r.dimension_values[0],g:normG(r.dimension_values[1]),v:+r.value});
+    const j2 = await g(`${acc.page.ig.id}/insights`,{...p,breakdown:loc},tok);
+    for (const r of j2.data?.[0]?.total_value?.breakdowns?.[0]?.results||[]) res.loc.push({name:r.dimension_values[0],v:+r.value});
+    if (!res.ag.length && !res.loc.length) throw new Error('ไม่มีข้อมูล (IG ต้องมีผู้ติดตาม ≥ 100 หรือยังไม่มีกิจกรรมในช่วงนี้)');
+    res.unit = src==='followers'?'followers':'accounts'; return res;
+  })();
+  S.demoCache.set(ck, pr);
+  pr.catch(()=>S.demoCache.delete(ck));
+  return pr;
+}
+function summarizeDemo(d){
+  const ag = {}; let F=0,M=0,U=0;
+  for (const r of d.ag){ (ag[r.age] ||= {F:0,M:0,U:0})[r.g]+=r.v; if(r.g==='F')F+=r.v; else if(r.g==='M')M+=r.v; else U+=r.v; }
+  const total = F+M+U;
+  const ages = [...new Set([...AGES.filter(a=>ag[a]), ...Object.keys(ag).filter(a=>!AGES.includes(a)).sort()])];
+  const topAge = ages.slice().sort((a,b)=>(ag[b].F+ag[b].M+ag[b].U)-(ag[a].F+ag[a].M+ag[a].U))[0];
+  const locM = new Map(); for (const r of d.loc) locM.set(r.name,(locM.get(r.name)||0)+r.v);
+  const loc = [...locM].map(([name,v])=>({name,v})).sort((a,b)=>b.v-a.v);
+  const locTotal = loc.reduce((s,r)=>s+r.v,0);
+  return {ag,ages,F,M,U,total,topAge,loc,locTotal};
+}
+let demoSeq = 0;
+async function renderDemo(){
+  buildDemoAccounts();
+  const accs = demoAccounts(); const src=$('#demoSrc').value, loc=$('#locType').value;
+  const acc = accs.find(a=>a.key===$('#demoAcc').value) || accs[0];
+  const seq = ++demoSeq;
+  if (!acc){ $('#demoKpis').innerHTML=''; $('#agTbl').innerHTML=$('#locTbl').innerHTML=$('#demoCmpTbl').innerHTML=''; msg('#demoMsg','ไม่มีบัญชีตามตัวกรอง','warn'); return; }
+  msg('#demoMsg','<span class="spinner"></span>กำลังโหลด…','warn');
+  try{
+    const d = await fetchDemo(acc, src, loc); if (seq!==demoSeq) return;
+    const s = summarizeDemo(d);
+    msg('#demoMsg', d.note?esc(d.note):'', 'warn');
+    $('#demoKpis').innerHTML = `
+      <div class="kpi"><div class="l">${esc(acc.label)}</div><div class="v">${fmtC(s.total||s.locTotal)}</div><div class="s">${esc(d.unit||'')}</div></div>
+      <div class="kpi"><div class="l">หญิง</div><div class="v">${pct(s.F,s.total,1)}</div><div class="s">${fmt(s.F)}</div></div>
+      <div class="kpi"><div class="l">ชาย</div><div class="v">${pct(s.M,s.total,1)}</div><div class="s">${fmt(s.M)}</div></div>
+      <div class="kpi"><div class="l">ช่วงอายุหลัก</div><div class="v">${esc(s.topAge||'–')}</div><div class="s">${s.topAge?pct(s.ag[s.topAge].F+s.ag[s.topAge].M+s.ag[s.topAge].U,s.total,1)+' ของทั้งหมด':''}</div></div>
+      <div class="kpi"><div class="l">พื้นที่อันดับ 1</div><div class="v" style="font-size:18px">${esc(s.loc[0]?.name||'–')}</div><div class="s">${s.loc[0]?pct(s.loc[0].v,s.locTotal,1):''}</div></div>`;
+    const maxAge = Math.max(1,...s.ages.map(a=>s.ag[a].F+s.ag[a].M+s.ag[a].U));
+    $('#agTbl').innerHTML = s.ages.length ? `<thead><tr><th>อายุ</th><th class="n">หญิง</th><th class="n">ชาย</th><th class="n">ไม่ระบุ</th><th class="n">รวม</th><th class="n">%</th><th></th></tr></thead><tbody>${
+      s.ages.map(a=>{const r=s.ag[a],t=r.F+r.M+r.U; return `<tr><td>${esc(a)}</td><td class="n">${fmt(r.F)}</td><td class="n">${fmt(r.M)}</td><td class="n">${fmt(r.U)}</td><td class="n">${fmt(t)}</td><td class="n">${pct(t,s.total,1)}</td>
+        <td><div class="bar" style="width:${Math.max(6,t/maxAge*140)}px"><i style="background:var(--ig);width:${pct(r.F,t||1,4)}"></i><i style="background:var(--fb);width:${pct(r.M,t||1,4)}"></i><i style="background:var(--muted);width:${pct(r.U,t||1,4)}"></i></div></td></tr>`;}).join('')
+      }<tr class="total"><td>รวม</td><td class="n">${fmt(s.F)}</td><td class="n">${fmt(s.M)}</td><td class="n">${fmt(s.U)}</td><td class="n">${fmt(s.total)}</td><td class="n">100%</td><td><span class="sm"><span class="dot" style="background:var(--ig)"></span>F <span class="dot" style="background:var(--fb)"></span>M</span></td></tr></tbody>`
+      : `<tbody><tr><td class="empty">ไม่มีข้อมูลอายุ/เพศ</td></tr></tbody>`;
+    const top = s.loc.slice(0,15), maxL=Math.max(1,...top.map(r=>r.v));
+    $('#locTbl').innerHTML = top.length ? `<thead><tr><th class="n">#</th><th>${loc==='city'?'เมือง / จังหวัด':'ประเทศ'}</th><th class="n">จำนวน</th><th class="n">%</th><th></th></tr></thead><tbody>${
+      top.map((r,i)=>`<tr><td class="n">${i+1}</td><td>${esc(r.name)}</td><td class="n">${fmt(r.v)}</td><td class="n">${pct(r.v,s.locTotal,1)}</td><td><div class="bar" style="width:${Math.max(6,r.v/maxL*120)}px"><i style="background:var(--accent);width:100%"></i></div></td></tr>`).join('')}</tbody>`
+      : `<tbody><tr><td class="empty">ไม่มีข้อมูลพื้นที่</td></tr></tbody>`;
+  }catch(e){
+    if (seq!==demoSeq) return;
+    msg('#demoMsg',esc(e.message),'err'); $('#demoKpis').innerHTML=''; $('#agTbl').innerHTML=''; $('#locTbl').innerHTML='';
+  }
+  // comparison across all accounts
+  $('#demoCmpTbl').innerHTML = `<tbody><tr><td class="empty"><span class="spinner"></span>กำลังโหลดตารางเปรียบเทียบ…</td></tr></tbody>`;
+  const res = await Promise.all(accs.map(a=>fetchDemo(a,src,loc).then(d=>({a,s:summarizeDemo(d)}),e=>({a,err:e.message}))));
+  if (seq!==demoSeq) return;
+  const ageCols = AGES.filter(age=>res.some(r=>r.s?.ag[age]));
+  $('#demoCmpTbl').innerHTML = `<thead><tr><th>บัญชี</th><th class="n">รวม</th><th class="n">% หญิง</th><th class="n">% ชาย</th>${ageCols.map(a=>`<th class="n">${a}</th>`).join('')}<th>ช่วงอายุหลัก</th><th>พื้นที่ Top 3</th></tr></thead><tbody>${
+    res.map(({a,s,err})=> err ? `<tr><td>${esc(a.label)}</td><td colspan="${5+ageCols.length}" class="sm">${esc(err)}</td></tr>` :
+      `<tr><td>${esc(a.label)}</td><td class="n">${fmt(s.total)}</td><td class="n">${pct(s.F,s.total,1)}</td><td class="n">${pct(s.M,s.total,1)}</td>${
+        ageCols.map(age=>{const r=s.ag[age]; return `<td class="n">${r?pct(r.F+r.M+r.U,s.total,1):'–'}</td>`;}).join('')}
+        <td>${esc(s.topAge||'–')}</td><td class="sm" style="white-space:normal">${s.loc.slice(0,3).map(l=>`${esc(l.name)} (${pct(l.v,s.locTotal,0)})`).join(', ')||'–'}</td></tr>`).join('')}</tbody>`;
+}
+
+/* ============================== DEMO DATA ============================== */
+function rng(seed){ let s=seed>>>0; return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; }; }
+function startDemo(){
+  S.demo=true; S.adsLoaded=true;
+  S.pages=[{id:'1001',name:'LABX',token:'',ig:{id:'17841001',username:'labx.official'}},{id:'1002',name:'ปักปากกา',token:'',ig:{id:'17841002',username:'pakpakka'}}];
+  S.adAccounts=[{id:'act_9001',name:'LABX Ads (demo)',account_status:1}];
+  S.selPages=new Set(S.pages.map(p=>p.id)); S.selAds=new Set(['act_9001']);
+  if (!$('#since').value) setPreset(28);
+  S.since=$('#since').value; S.until=$('#until').value;
+  renderSetup();
+  const r = rng(42), items=[]; const t0=new Date(S.since).getTime(), t1=new Date(S.until).getTime()+864e5;
+  const caps = ['รีวิวจริงจากลูกค้า ผลลัพธ์หลังทำ 2 สัปดาห์','โปรเดือนนี้ ลดสูงสุด 50% จองผ่าน LINE','สาระน่ารู้: ดูแลผิวหลังทำเลเซอร์','เบื้องหลังการทำงานของคุณหมอ','Q&A ตอบคำถามยอดฮิต','Before/After ปรับรูปหน้า','ไลฟ์สดแจกส่วนลด','ทริคแต่งหน้าให้ดูสดใส','เปิดสาขาใหม่!','Reels: 30 วิ เข้าใจ Filler'];
+  const types = {facebook:['added_photos','added_video','shared_story','mobile_status_update'],instagram:['IMAGE','REELS','CAROUSEL_ALBUM']};
+  let n=0;
+  for (const p of S.pages) for (const ch of ['facebook','instagram']){
+    const cnt = 22 + Math.floor(r()*18), scale = p.name==='LABX'?1.6:1;
+    for (let i=0;i<cnt;i++){
+      const id = `${p.id}_${ch[0]}${++n}`, views = Math.round((800+r()**2*40000)*scale*(ch==='instagram'?1.2:1));
+      const eng = Math.round(views*(0.01+r()*0.06));
+      const it = newItem({key:`${ch==='facebook'?'fb':'ig'}:${id}`,id,pageId:p.id,pageName:p.name,channel:ch,caption:caps[Math.floor(r()*caps.length)],
+        created:new Date(t0+r()*(t1-t0)).toISOString(),mediaType:types[ch][Math.floor(r()*types[ch].length)],permalink:'',api:{views,fromAds:null,eng}});
+      if (r()<0.3){ it.paid.views=Math.round(views*(0.4+r()*1.5)); it.paid.eng=Math.round(it.paid.views*(0.004+r()*0.02)); it.paid.spend=it.paid.views/1000*(60+r()*90); it.paid.ads.add('ad'+n); it.api.views+=it.paid.views; it.api.eng+=it.paid.eng; }
+      items.push(it);
+    }
+    for (let i=0;i<4;i++){ // dark posts
+      const id=`${p.id}_d${++n}`, pv=Math.round((20000+r()*120000)*scale), pe=Math.round(pv*(0.003+r()*0.015));
+      const it=newItem({key:`${ch==='facebook'?'fb':'igad'}:${id}`,id,pageId:p.id,pageName:p.name,channel:ch,adOnly:true,caption:'[Ad] '+caps[Math.floor(r()*caps.length)],mediaType:'AD'});
+      Object.assign(it.paid,{views:pv,eng:pe,spend:pv/1000*(70+r()*80)}); it.paid.ads.add('ad'+n); items.push(it);
+    }
+  }
+  S.items = finalize(items); S.f.pages=new Set(S.selPages); S.demoCache.clear();
+  msg('#connectMsg','กำลังแสดง <b>ข้อมูลตัวอย่าง</b> (ไม่ใช่ข้อมูลจริง) — ใส่ token แล้วกด "เชื่อมต่อ" เพื่อดึงข้อมูลจริง','warn');
+  msg('#loadMsg','');
+  showDash();
+}
+function fakeDemo(acc, src, loc){
+  const r = rng([...acc.key+src+loc].reduce((s,c)=>s*31+c.charCodeAt(0)|0,7));
+  if (acc.channel==='facebook' && (src==='engaged'||src==='reached')) throw new Error('Facebook Page รองรับเฉพาะ Followers (legacy) และ Ads audience');
+  const base = (acc.page.name==='LABX'?40000:18000)*(src==='followers'?1:0.25);
+  const w = {'13-17':.01,'18-24':.2,'25-34':.38,'35-44':.24,'45-54':.11,'55-64':.04,'65+':.02};
+  const fem = 0.7+r()*0.15;
+  const ag=[]; for (const a of AGES){ const t=base*w[a]*(0.8+r()*0.4); ag.push({age:a,g:'F',v:Math.round(t*fem)},{age:a,g:'M',v:Math.round(t*(1-fem)*0.95)},{age:a,g:'U',v:Math.round(t*0.02)}); }
+  const names = loc==='city' ? ['Bangkok','Nonthaburi','Samut Prakan','Pathum Thani','Chon Buri','Chiang Mai','Nakhon Ratchasima','Khon Kaen','Songkhla','Phuket','Udon Thani','Nakhon Pathom','Rayong','Surat Thani','Ubon Ratchathani']
+    : ['Thailand','Laos','Myanmar','Cambodia','Malaysia','Japan','United States','Singapore','Vietnam','China'];
+  let v=base*0.5; const locs = names.map(name=>{ v*= (0.45+r()*0.35); return {name,v:Math.round(v)}; });
+  return {ag, loc:locs, unit: src==='ads'?'reach':src==='followers'?'followers':'accounts', note:''};
+}
+
+/* ============================== WIRING ============================== */
+function seg(sel, fn){ $(sel).addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; $(sel).querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); fn(b.dataset); }); }
+seg('#chSeg', d=>{ S.f.ch=d.v; render(); });
+seg('#typeSeg', d=>{ S.f.type=d.v; render(); });
+seg('#topSeg', d=>{ S.top=+d.v; renderRank(); });
+seg('#sortSeg', d=>{ S.sort=d.v; renderRank(); });
+seg('#presetSeg', d=>setPreset(+d.d));
+seg('#tabs', d=>{ S.tab=d.t; for (const t of ['overview','demo','rank']) $('#tab-'+t).classList.toggle('hidden',t!==d.t); render(); });
+['#demoAcc','#demoSrc','#locType'].forEach(s=>$(s).addEventListener('change',renderDemo));
+$('#connectBtn').onclick = connect;
+$('#loadBtn').onclick = ()=> S.demo ? startDemo() : loadData();
+$('#demoBtn').onclick = startDemo;
+$('#csvBtn').onclick = exportCsv;
+$('#showTok').onclick = ()=>{ const t=$('#token'); t.type = t.type==='password'?'text':'password'; $('#showTok').textContent = t.type==='password'?'แสดง':'ซ่อน'; };
+$('#token').addEventListener('keydown',e=>{ if(e.key==='Enter') connect(); });
+$('#themeBtn').onclick = ()=>{ const r=document.documentElement; const dark = r.dataset.theme ? r.dataset.theme==='dark' : matchMedia('(prefers-color-scheme: dark)').matches; r.dataset.theme = dark?'light':'dark'; try{localStorage.setItem('labx_theme',r.dataset.theme);}catch(e){} };
+try{
+  const tk=localStorage.getItem('labx_tok'); if (tk){ $('#token').value=tk; $('#remember').checked=true; }
+  const v=localStorage.getItem('labx_ver'); if (v) $('#ver').value=v;
+  const th=localStorage.getItem('labx_theme'); if (th) document.documentElement.dataset.theme=th;
+}catch(e){}
+setPreset(28);
+</script>
+</body>
+</html>
