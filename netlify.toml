@@ -7,9 +7,9 @@
   for = "/*"
   [headers.values]
     # Only graph.facebook.com may receive requests (the access token never leaves to any other host)
-    Content-Security-Policy = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src https: data:; connect-src https://graph.facebook.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    Content-Security-Policy = "default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src https: data:; connect-src 'self' https://graph.facebook.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
     Referrer-Policy = "no-referrer"
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     X-Robots-Tag = "noindex, nofollow"
-    Cache-Control = "no-store"
+    Cache-Control = "no-cache"
