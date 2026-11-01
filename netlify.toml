@@ -1,0 +1,15 @@
+# Netlify: deploy the insights dashboard (static, no build step)
+[build]
+  publish = "insights-dashboard"
+  command = ""
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Only graph.facebook.com may receive requests (the access token never leaves to any other host)
+    Content-Security-Policy = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src https: data:; connect-src https://graph.facebook.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    Referrer-Policy = "no-referrer"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    X-Robots-Tag = "noindex, nofollow"
+    Cache-Control = "no-store"

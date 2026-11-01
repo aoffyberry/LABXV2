@@ -52,3 +52,10 @@ Dashboard ไฟล์เดียว (`index.html`) ดึงข้อมูล
 - Meta เปลี่ยนชื่อ metric บ่อย ถ้าเวอร์ชัน API เปลี่ยน ให้แก้ช่อง **API version** และดู **Log การเรียก API** ในหน้า dashboard ว่ามี metric ไหน error
 - IG Stories ไม่รวม (endpoint `/media` ไม่คืน story ที่หมดอายุ)
 - เพจที่มีโพสต์เยอะ + ช่วงวันที่ยาว จะโหลดนาน (insights ดึงทีละโพสต์ แบบขนาน 6 request)
+
+## Deploy บน Netlify
+`netlify.toml` ที่ root ของ repo ตั้งค่าให้แล้ว (publish โฟลเดอร์ `insights-dashboard`, ไม่มี build step)
+- **ผ่าน Git**: Netlify → Add new site → Import from GitHub → เลือก repo นี้ + branch → Deploy (ค่าอ่านจาก `netlify.toml` เอง)
+- **CLI**: `npx netlify-cli deploy --prod` (รันที่ root ของ repo)
+- Header `Content-Security-Policy` อนุญาตให้หน้าเว็บส่ง request ไปได้แค่ `graph.facebook.com` → token ไม่หลุดไปโดเมนอื่น แม้มีสคริปต์แปลกปลอม
+- เว็บเป็น public URL (ใครมีลิงก์ก็เปิดได้ แต่ไม่มีข้อมูลจนกว่าจะใส่ token) ถ้าต้องการล็อกเพิ่ม ใช้ Netlify Password Protection / Basic Auth (แพ็กเกจ Pro)
