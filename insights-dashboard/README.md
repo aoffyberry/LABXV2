@@ -64,6 +64,13 @@ GitHub Actions (ทุกวัน 03:17 น.)            Netlify (static)
 
 ตัวกรองด้านบนใช้ร่วมกันทุกแท็บ: **Channel** (ทั้งหมด / Facebook / Instagram), **Organic / Paid / รวม**, **เพจ**
 
+## Export Excel
+ปุ่ม **⬇ Export Excel** (แถบตัวกรอง) ส่งออกช่วงที่เลือกอยู่เป็น `.xlsx` (สร้างในเบราว์เซอร์ ไม่ส่งข้อมูลออกไปไหน)
+- **สรุปแยกเพจ** — แต่ละเพจ × FB/IG + รวมรายเพจ + รวมทั้งหมด: คอนเทนต์, Organic/Paid Views, Organic/Paid Eng., ER, Spend, CPM, CPE และถ้าติ๊ก "เทียบกับเดือนก่อน" จะมีคอลัมน์เดือนก่อน + Δ
+- **ชีตต่อเพจ** — รายคอนเทนต์เรียงตาม Total Views พร้อมลิงก์
+- **Demographics** — % เพศ / ช่วงอายุ / Top 3 จังหวัด ต่อบัญชี (โหมด Snapshot)
+- ใช้ตัวกรองเพจ แต่ไม่ใช้ตัวกรอง Channel / Organic-Paid (ส่งออกครบทุกช่อง)
+
 ## นิยาม metric
 
 | Metric | Facebook | Instagram | Paid (Ads) |

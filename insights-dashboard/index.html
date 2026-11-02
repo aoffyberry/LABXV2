@@ -197,6 +197,7 @@ td.sep,th.sep{border-left:1px solid var(--line)}
         <div class="seg" id="typeSeg"><button data-v="all" class="on">รวม</button><button data-v="organic">Organic</button><button data-v="paid">Paid Ads</button></div>
       </div>
       <div class="field grow"><label>เพจ</label><div class="chips" id="fPageChips"></div></div>
+      <button class="primary" id="xlsxBtn" title="สรุปช่วงที่เลือก แยกเพจ + รายคอนเทนต์ + demographics">⬇ Export Excel</button>
     </div>
 
     <nav class="tabs" id="tabs">
@@ -262,6 +263,7 @@ td.sep,th.sep{border-left:1px solid var(--line)}
 </div>
 
 <script type="module">
+import { buildXlsx } from './xlsx.mjs';
 import { createClient, discover, collectContent, fetchDemographic, decryptJson, prevPeriod, periodRange, DEMO_SOURCES, DEMO_LOCS, PAGE_MATCH_DEFAULT } from './collect.mjs';
 
 /* ============================== STATE ============================== */
@@ -554,6 +556,85 @@ function exportCsv(){
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`content-top${S.top}-${S.sort}-${t}-${tag}.csv`; a.click(); URL.revokeObjectURL(a.href);
 }
 
+/* ============================== EXCEL ============================== */
+const bkkDate = d => d ? new Date(new Date(d).getTime()+7*3600e3).toISOString().slice(0,10) : '';
+const ratio = (a,b) => b ? a/b : null;
+const dRatio = (c,p) => p ? (c-p)/p : null;
+function exportExcel(){
+  const byPage = list => (list||[]).filter(it=>S.f.pages.has(it.pageId));
+  const cur = byPage(S.items), prev = S.compare && S.prev ? byPage(S.prev.items) : null;
+  const range = S.cur ? `${S.cur.since} ถึง ${S.cur.until}` : `${S.liveRange.since} ถึง ${S.liveRange.until}`;
+  const label = S.cur ? periodLabel(S.cur.period,S.cur) : range;
+  const plabel = prev ? periodLabel(S.prev.period,S.prev) : '';
+  const pages = S.pages.filter(p=>S.f.pages.has(p.id)).slice().sort((a,b)=>a.name.localeCompare(b.name,'th'));
+  const H = v => ({v,s:'h'});
+  // ---------- sheet 1: summary by page ----------
+  const head = ['เพจ','Channel','คอนเทนต์','Organic posts','ยิงแอด','Organic Views','Paid Views','Total Views','Organic Eng.','Paid Eng.','Total Eng.','ER','Spend','CPM','CPE'];
+  if (prev) head.push(`Total Views (${plabel})`,'Δ Views',`Total Eng. (${plabel})`,'Δ Eng.',`ER (${plabel})`,'Δ ER',`Spend (${plabel})`,'Δ Spend');
+  const line = (name, ch, list, plist, bold) => {
+    const a = agg(list), b = plist ? agg(plist) : null, S_ = k => bold ? 'b'+k : k;
+    const row = [{v:name,s:bold?'btext':'def'},{v:ch,s:bold?'btext':'def'},{v:a.n,s:S_('int')},{v:a.nOrg,s:S_('int')},{v:a.nPaid,s:S_('int')},
+      {v:a.ov,s:S_('int')},{v:a.pv,s:S_('int')},{v:a.tv,s:S_('int')},{v:a.oe,s:S_('int')},{v:a.pe,s:S_('int')},{v:a.te,s:S_('int')},
+      {v:ratio(a.te,a.tv),s:S_('pct')},{v:Math.round(a.spend*100)/100,s:S_('money')},{v:a.pv?a.spend/a.pv*1000:null,s:S_('money')},{v:a.pe?a.spend/a.pe:null,s:S_('money')}];
+    if (b) row.push({v:b.tv,s:'int'},{v:dRatio(a.tv,b.tv),s:'dpct'},{v:b.te,s:'int'},{v:dRatio(a.te,b.te),s:'dpct'},
+      {v:ratio(b.te,b.tv),s:'pct'},{v:b.tv&&a.tv?(a.te/a.tv-b.te/b.tv)*100:null,s:'pp'},{v:Math.round(b.spend*100)/100,s:'money'},{v:dRatio(a.spend,b.spend),s:'dpct'});
+    return row;
+  };
+  const rows = [
+    [{v:'สรุป Content Performance แยกเพจ — LABX × ปักปากกา',s:'title'}], [],
+    [{v:'ช่วงข้อมูล',s:'btext'}, `${label} (${range})`],
+    [{v:'เทียบกับ',s:'btext'}, prev ? `${plabel} (${S.prev.since} ถึง ${S.prev.until})` : '–'],
+    [{v:'ข้อมูล ณ',s:'btext'}, S.cur?.fetchedAt ? new Date(S.cur.fetchedAt).toLocaleString('th-TH') : new Date().toLocaleString('th-TH')],
+    [{v:'แหล่งข้อมูล',s:'btext'}, S.mode==='demo' ? 'ข้อมูลตัวอย่าง (ไม่ใช่ข้อมูลจริง)' : S.mode==='live' ? 'Live Graph API' : 'Snapshot (GitHub Actions)'],
+    [{v:'Views = Views/Impressions · Engagement = reactions+comments+shares (+saves IG) · Paid = Ads Insights · Organic = ยอดโพสต์ − ส่วนจากแอด · คอนเทนต์ = โพสต์ที่ลงในช่วง + แอดที่วิ่งในช่วง',s:'note'}],
+    [], head.map(H),
+  ];
+  const freezeAt = rows.length;
+  const pg = (list,id,ch) => list.filter(it=>it.pageId===id && (!ch || it.channel===ch));
+  for (const p of pages){
+    for (const ch of ['facebook','instagram']){
+      const c = pg(cur,p.id,ch), q = prev ? pg(prev,p.id,ch) : null;
+      if (!c.length && !(q&&q.length)) continue;
+      rows.push(line(p.name, ch==='facebook'?'Facebook':'Instagram', c, q, false));
+    }
+    rows.push(line(`รวม ${p.name}`, 'FB + IG', pg(cur,p.id), prev?pg(prev,p.id):null, true));
+  }
+  rows.push([], line('รวมทุกเพจ','ทั้งหมด',cur,prev,true));
+  const sheets = [{ name:'สรุปแยกเพจ', rows, freeze:freezeAt, cols:[22,12,10,11,9,14,14,14,13,12,13,9,14,10,10, ...(prev?[16,10,16,10,12,11,14,10]:[])] }];
+  // ---------- one sheet per page: content list ----------
+  for (const p of pages){
+    const list = pg(cur,p.id).slice().sort((a,b)=>b.tot.views-a.tot.views);
+    const r = [[{v:`${p.name} — คอนเทนต์ ${label}`,s:'title'}],[],
+      ['#','วันที่','Channel','ประเภท','รูปแบบ','แคปชัน','Organic Views','Paid Views','Total Views','Organic Eng.','Paid Eng.','Total Eng.','ER','Spend','ลิงก์'].map(H)];
+    list.forEach((it,i)=>r.push([i+1, bkkDate(it.created), it.channel==='facebook'?'Facebook':'Instagram', it.adOnly?'Ad-only':it.isPaid?'Organic + Ads':'Organic', it.mediaType||'',
+      (it.caption||'').replace(/\s+/g,' ').slice(0,300), it.org.views, it.paid.views, it.tot.views, it.org.eng, it.paid.eng, it.tot.eng,
+      {v:ratio(it.tot.eng,it.tot.views),s:'pct'}, {v:+it.paid.spend||0,s:'money'}, it.permalink||'']));
+    sheets.push({ name:p.name, rows:r, freeze:3, cols:[6,11,11,14,16,60,13,12,13,12,11,12,9,12,40] });
+  }
+  // ---------- demographics ----------
+  if (S.cur?.demographics){
+    const r = [[{v:`Demographics — ${label}`,s:'title'}],[{v:'Followers = ค่า ณ วันที่ดึงข้อมูล · Ads audience = reach ของแอดในช่วงนี้',s:'note'}],[],
+      ['เพจ','Channel','กลุ่มผู้ชม','รวม','% หญิง','% ชาย',...AGES,'Top 1 จังหวัด','Top 2','Top 3','หมายเหตุ'].map(H)];
+    for (const p of pages) for (const ch of ['facebook','instagram']){
+      if (ch==='instagram' && !p.ig) continue;
+      for (const src of DEMO_SOURCES[ch]){
+        const d = S.cur.demographics[`${p.id}|${ch}|${src}|city`];
+        const base = [p.name, ch==='facebook'?'Facebook':'Instagram', {followers:'Followers',engaged:'Engaged',reached:'Reached',ads:'Ads audience'}[src]];
+        if (!d || d.error){ r.push([...base,...Array(5+AGES.length).fill(null),d?.error||'ไม่มีข้อมูล']); continue; }
+        const s = summarizeDemo(d);
+        r.push([...base, s.total, {v:ratio(s.F,s.total),s:'pct'}, {v:ratio(s.M,s.total),s:'pct'},
+          ...AGES.map(a=>({v:s.ag[a]?ratio(s.ag[a].F+s.ag[a].M+s.ag[a].U,s.total):null,s:'pct'})),
+          ...[0,1,2].map(i=>s.loc[i]?`${s.loc[i].name} (${(s.loc[i].v/s.locTotal*100).toFixed(0)}%)`:''), d.note||'']);
+      }
+    }
+    sheets.push({ name:'Demographics', rows:r, freeze:4, cols:[18,11,13,11,9,9,...AGES.map(()=>8),22,22,22,40] });
+  }
+  const blob = new Blob([buildXlsx(sheets)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `LABX-insights-${S.cur ? S.cur.period : S.liveRange.since+'_'+S.liveRange.until}${prev?'-vs-'+S.prev.period:''}.xlsx`;
+  a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+}
+
 /* ============================== TAB 2 ============================== */
 const AGES = ['13-17','18-24','25-34','35-44','45-54','55-64','65+'];
 function demoAccounts(){
@@ -718,6 +799,7 @@ $('#demoBtn').onclick = startDemo;
 $('#connectBtn').onclick = connect;
 $('#loadBtn').onclick = loadLive;
 $('#csvBtn').onclick = exportCsv;
+$('#xlsxBtn').onclick = exportExcel;
 $('#showTok').onclick = ()=>{ const t=$('#token'); t.type = t.type==='password'?'text':'password'; $('#showTok').textContent = t.type==='password'?'แสดง':'ซ่อน'; };
 $('#token').addEventListener('keydown',e=>{ if(e.key==='Enter') connect(); });
 $('#themeBtn').onclick = ()=>{ const r=document.documentElement; const dark = r.dataset.theme ? r.dataset.theme==='dark' : matchMedia('(prefers-color-scheme: dark)').matches; r.dataset.theme = dark?'light':'dark'; store.set('labx_theme',r.dataset.theme); };
