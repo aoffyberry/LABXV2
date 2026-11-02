@@ -160,7 +160,7 @@ td.sep,th.sep{border-left:1px solid var(--line)}
       </div>
       <div class="row" style="margin-top:8px">
         <label class="chk"><input type="checkbox" id="remember"> จำ token ไว้ในเบราว์เซอร์นี้</label>
-        <span class="hint">ดึงสดทุกครั้ง (ช้า/อาจติด rate limit) — ใช้เมื่อต้องการข้อมูลช่วงวันที่เอง · Permission: pages_show_list, pages_read_engagement, read_insights, instagram_basic, instagram_manage_insights, ads_read</span>
+        <span class="hint">ดึงสดทุกครั้ง (ช้า/อาจติด rate limit) — ใช้เมื่อต้องการข้อมูลช่วงวันที่เอง · Permission: pages_show_list, pages_read_engagement, read_insights, instagram_basic, instagram_manage_insights, ads_read, pages_messaging, instagram_manage_messages</span>
       </div>
       <div id="connectMsg"></div>
 
@@ -215,6 +215,9 @@ td.sep,th.sep{border-left:1px solid var(--line)}
       </div>
       <div class="section-title">Breakdown by Page</div>
       <div class="tbl-wrap"><table id="pageTbl"></table></div>
+      <div class="section-title">Inbox by Page (Messenger / IG Direct)</div>
+      <div class="tbl-wrap"><table id="inboxTbl"></table></div>
+      <p class="hint">แชทใหม่ = บทสนทนาที่ข้อความแรกอยู่ในช่วงนี้ · จากแอด = messaging conversations started (Ads Insights, attribution 7 วัน) · Organic = แชทใหม่ − จากแอด (ประมาณ) · Active = บทสนทนาที่มีข้อความในช่วงนี้ · Cost/แชท = Spend ทั้งหมดของเพจ+ช่องทาง ÷ แชทจากแอด (blended) · ต้องมีสิทธิ์ pages_messaging / instagram_manage_messages</p>
       <p class="hint">Views = ยอดการแสดงผล (Views / Impressions) · Engagement = reactions + comments + shares (+ saves บน IG) · Paid = ข้อมูลจาก Ads Insights ของแอดที่ผูกกับโพสต์ · Organic = ยอดรวมของโพสต์ − ส่วนที่มาจากโฆษณา · คอนเทนต์ = โพสต์ที่ลงในช่วงนั้น + แอดที่วิ่งในช่วงนั้น</p>
     </div>
 
@@ -264,7 +267,7 @@ td.sep,th.sep{border-left:1px solid var(--line)}
 
 <script type="module">
 import { buildXlsx } from './xlsx.mjs';
-import { createClient, discover, collectContent, fetchDemographic, decryptJson, prevPeriod, periodRange, DEMO_SOURCES, DEMO_LOCS, PAGE_MATCH_DEFAULT } from './collect.mjs';
+import { createClient, discover, collectContent, collectInbox, fetchDemographic, decryptJson, prevPeriod, periodRange, DEMO_SOURCES, DEMO_LOCS, PAGE_MATCH_DEFAULT } from './collect.mjs';
 
 /* ============================== STATE ============================== */
 const S = {
@@ -361,7 +364,7 @@ async function loadPeriod(){
   try{
     const [cur, prev] = await Promise.all([fetchSnap(id), S.compare && S.index.periods[pid] ? fetchSnap(pid).catch(()=>null) : null]);
     S.cur = cur; S.prev = prev;
-    S.items = cur.items; S.pages = cur.pages;
+    S.items = cur.items; S.pages = cur.pages; S.inbox = cur.inbox || null;
     const ids = new Set(S.pages.map(p=>p.id));
     if (![...S.f.pages].some(x=>ids.has(x))) S.f.pages = new Set(ids);
     const meta = S.index.periods[id];
@@ -413,7 +416,9 @@ async function loadLive(){
   try{
     const r = await collectContent(S.client,{pages, adAccounts:S.adAccounts.filter(a=>S.selAds.has(a.id)), since, until,
       onStatus:t=>msg('#loadMsg',`<span class="spinner"></span>${esc(t)}`,'warn')});
-    S.mode='live'; S.items=r.items; S.pages=pages; S.adIndex=r.adIndex; S.liveRange={since,until}; S.cur=null; S.prev=null;
+    const ib = await collectInbox(S.client,{pages, since, until, inboxPaid:r.inboxPaid, onStatus:t=>msg('#loadMsg',`<span class="spinner"></span>${esc(t)}`,'warn')});
+    r.warnings.push(...ib.warnings);
+    S.mode='live'; S.items=r.items; S.pages=pages; S.adIndex=r.adIndex; S.liveRange={since,until}; S.cur=null; S.prev=null; S.inbox=ib.inbox;
     S.f.pages = new Set(pages.map(p=>p.id));
     msg('#loadMsg',`โหลดเสร็จ · ${r.items.length} คอนเทนต์`+(r.warnings.length?`<br>⚠ ${r.warnings.map(esc).join('<br>⚠ ')}`:''), r.warnings.length?'warn':'ok');
     showDash();
@@ -472,7 +477,14 @@ function renderOverview(){
     <div class="kpi"><div class="l">Engagement rate</div><div class="v">${pct(c.e,c.v)}</div><div class="s">Engagement ÷ Views</div>${hasPrev?`<div class="s">vs ${pl}: ${pct(p.e,p.v)} ${delta(c.v?c.e/c.v:0,p.v?p.e/p.v:0,{pp:true})}</div>`:''}</div>
     <div class="kpi"><div class="l">จำนวนคอนเทนต์</div><div class="v">${fmt(c.n)}</div><div class="s">Organic ${fmt(a.nOrg)} · ยิงแอด ${fmt(a.nPaid)}</div>${vs(c.n,p?.n,fmt)}</div>`;
   if (t!=='organic') html += `<div class="kpi"><div class="l">Ad spend</div><div class="v">${fmtC(a.spend)}</div><div class="s">CPE ${a.pe?money(a.spend/a.pe):'–'} · CPM ${a.pv?money(a.spend/a.pv*1000):'–'}</div>${vs(a.spend,pa?.spend)}</div>`;
+  const ibc = inboxAgg(S.inbox), ibp = hasPrev ? inboxAgg(S.prev.inbox) : null;
+  if (ibc){
+    const iv = o => !o ? null : t==='organic' ? o.organic : t==='paid' ? o.paid : o.new;
+    html += `<div class="kpi"><div class="l">Inbox แชทใหม่ ${tl}</div><div class="v">${fmt(iv(ibc))}</div>
+      <div class="s">Organic ${fmt(ibc.organic)} · จากแอด ${fmt(ibc.paid)}${ibc.active!=null?` · Active ${fmt(ibc.active)}`:''}</div>${ibp?vs(iv(ibc),iv(ibp),fmt):''}${ibc.errors?`<div class="s" style="color:var(--warn)">⚠ ดึงไม่ได้ ${ibc.errors} บัญชี</div>`:''}</div>`;
+  }
   $('#kpis').innerHTML = html;
+  renderInbox(list, hasPrev);
 
   // comparison table (page × channel)
   $('#cmpWrap').classList.toggle('hidden', !hasPrev);
@@ -517,6 +529,42 @@ function renderOverview(){
   }
   const body = rows.map(r=>rowFn(esc(r.pageName), chLabel(r.channel), r.a)).join('');
   $('#pageTbl').innerHTML = rows.length ? `<thead>${head}</thead><tbody>${body}${rowFn('รวม','',a,'total')}</tbody>` : `<tbody><tr><td class="empty">ไม่มีข้อมูลตามตัวกรอง</td></tr></tbody>`;
+}
+
+/* ============================== INBOX ============================== */
+function inboxRows(inbox){
+  if (!inbox) return [];
+  const out=[];
+  for (const p of S.pages.filter(p=>S.f.pages.has(p.id))) for (const ch of ['facebook','instagram']){
+    if (S.f.ch!=='all' && S.f.ch!==ch) continue;
+    const d = inbox[`${p.id}|${ch}`]; if (!d) continue;
+    out.push({pageId:p.id, pageName:p.name, channel:ch, ...d});
+  }
+  return out;
+}
+function inboxAgg(inbox, rows=inboxRows(inbox)){
+  if (!rows.length) return null;
+  const sum = k => { const v=rows.filter(r=>!r.error && r[k]!=null); return v.length ? v.reduce((s,r)=>s+r[k],0) : null; };
+  return {new:sum('new'), paid:rows.reduce((s,r)=>s+(r.paid||0),0), organic:sum('organic'), active:sum('active'), msgsIn:sum('msgsIn'), errors:rows.filter(r=>r.error).length};
+}
+function renderInbox(list, hasPrev){
+  const rows = inboxRows(S.inbox);
+  if (!rows.length){ $('#inboxTbl').innerHTML = `<tbody><tr><td class="empty">ไม่มีข้อมูล inbox ในชุดข้อมูลนี้</td></tr></tbody>`; return; }
+  const prevRows = hasPrev ? inboxRows(S.prev.inbox) : [];
+  const pk = r => `${r.pageId}|${r.channel}`, prevMap = new Map(prevRows.map(r=>[pk(r),r]));
+  const spendOf = (pid,ch) => list.filter(it=>it.pageId===pid&&it.channel===ch).reduce((s,it)=>s+(+it.paid.spend||0),0);
+  const cmp = hasPrev && prevRows.length;
+  const pl = cmp ? esc(monthLabel(S.prev.period.slice(0,7))) : '';
+  const head = `<tr><th>เพจ</th><th>ช่องทาง</th><th class="n">แชทใหม่</th><th class="n">จากแอด</th><th class="n">Organic</th><th class="n">Active</th><th class="n">ข้อความจากลูกค้า</th><th class="n">Cost/แชท</th>
+    ${cmp?`<th class="n sep">แชทใหม่ ${pl}</th><th class="n">Δ</th><th class="n">จากแอด ${pl}</th><th class="n">Δ</th>`:''}</tr>`;
+  const line = (name, ch, r, q, spend, cls='') => r.error
+    ? `<tr class="${cls}"><td>${name}</td><td>${ch}</td><td colspan="${6+(cmp?4:0)}" class="sm" style="white-space:normal">${esc(r.error)}${r.paid?` · จากแอด ${fmt(r.paid)}`:''}</td></tr>`
+    : `<tr class="${cls}"><td>${name}</td><td>${ch}</td><td class="n">${fmt(r.new)}</td><td class="n">${fmt(r.paid)}</td><td class="n">${fmt(r.organic)}</td><td class="n">${r.active==null?'–':fmt(r.active)}</td><td class="n">${r.msgsIn==null?'–':fmt(r.msgsIn)}</td><td class="n">${r.paid?money(spend/r.paid):'–'}</td>
+      ${cmp?`<td class="n sep">${q&&!q.error?fmt(q.new):'–'}</td><td class="n">${q&&!q.error&&q.new!=null&&r.new!=null?delta(r.new,q.new):''}</td><td class="n">${q?fmt(q.paid):'–'}</td><td class="n">${q?delta(r.paid,q.paid):''}</td>`:''}</tr>`;
+  const body = rows.map(r=>line(esc(r.pageName), r.channel==='facebook'?'<span class="badge b-fb">Messenger</span>':'<span class="badge b-ig">IG Direct</span>', r, prevMap.get(pk(r)), spendOf(r.pageId,r.channel))).join('');
+  const tot = inboxAgg(null, rows), ptot = cmp ? inboxAgg(null, prevRows) : null;
+  const totSpend = rows.reduce((s,r)=>s+spendOf(r.pageId,r.channel),0);
+  $('#inboxTbl').innerHTML = `<thead>${head}</thead><tbody>${body}${line('รวม','',tot,ptot,totSpend,'total')}</tbody>`;
 }
 
 /* ============================== TAB 3 ============================== */
@@ -610,6 +658,23 @@ function exportExcel(){
       (it.caption||'').replace(/\s+/g,' ').slice(0,300), it.org.views, it.paid.views, it.tot.views, it.org.eng, it.paid.eng, it.tot.eng,
       {v:ratio(it.tot.eng,it.tot.views),s:'pct'}, {v:+it.paid.spend||0,s:'money'}, it.permalink||'']));
     sheets.push({ name:p.name, rows:r, freeze:3, cols:[6,11,11,14,16,60,13,12,13,12,11,12,9,12,40] });
+  }
+  // ---------- inbox ----------
+  if (S.inbox){
+    const r = [[{v:`Inbox — ${label}`,s:'title'}],[{v:'แชทใหม่ = ข้อความแรกอยู่ในช่วงนี้ · จากแอด = messaging conversations started (7d) · Organic = แชทใหม่ − จากแอด (ประมาณ) · Active = มีข้อความในช่วงนี้',s:'note'}],[],
+      ['เพจ','ช่องทาง','แชทใหม่','จากแอด','Organic','Active','ข้อความจากลูกค้า','Spend','Cost/แชทจากแอด', ...(prev?[`แชทใหม่ (${plabel})`,'Δ แชทใหม่',`จากแอด (${plabel})`,'Δ จากแอด']:[]),'หมายเหตุ'].map(H)];
+    const pin = S.prev?.inbox || {};
+    for (const p of pages) for (const ch of ['facebook','instagram']){
+      const d = S.inbox[`${p.id}|${ch}`]; if (!d) continue;
+      const q = prev ? pin[`${p.id}|${ch}`] : null;
+      const spend = pg(cur,p.id,ch).reduce((s,it)=>s+(+it.paid.spend||0),0);
+      const ok = !d.error, qok = q && !q.error;
+      r.push([p.name, ch==='facebook'?'Messenger':'IG Direct', ok?d.new:null, d.paid||0, ok?d.organic:null, ok?d.active:null, ok?d.msgsIn:null,
+        {v:Math.round(spend*100)/100,s:'money'}, {v:d.paid?spend/d.paid:null,s:'money'},
+        ...(prev?[qok?q.new:null,{v:ok&&qok?dRatio(d.new,q.new):null,s:'dpct'},q?q.paid||0:null,{v:q?dRatio(d.paid||0,q.paid||0):null,s:'dpct'}]:[]),
+        d.error||(d.source==='page_insights'?'จาก Page Insights (ไม่มี Active/ข้อความ)':'')||d.note||'']);
+    }
+    sheets.splice(1,0,{ name:'Inbox', rows:r, freeze:4, cols:[18,12,10,10,10,10,14,13,14, ...(prev?[16,10,16,10]:[]),50] });
   }
   // ---------- demographics ----------
   if (S.cur?.demographics){
@@ -759,7 +824,12 @@ function demoSnapshot(id){
   const demographics={};
   for (const p of DEMO_PAGES) for (const ch of ['facebook','instagram']) for (const src of DEMO_SOURCES[ch]) for (const loc of DEMO_LOCS)
     demographics[`${p.id}|${ch}|${src}|${loc}`] = (ch==='facebook'&&src==='followers') ? {error:'Meta ยกเลิก metric ข้อมูลประชากรผู้ติดตามเพจ Facebook แล้ว — เลือก "Ads audience" แทน'} : fakeDemo(`${id}|${p.id}|${ch}|${src}|${loc}`, p, src, loc);
-  return {period:id, ...meta, pages:DEMO_PAGES, items, demographics, warnings:[]};
+  const inbox={};
+  for (const p of DEMO_PAGES) for (const ch of ['facebook','instagram']){
+    const sc=(p.name==='LABX'?1.5:1)*boost*days/30, fresh=Math.round((ch==='facebook'?420:260)*sc*(0.8+r()*0.4)), paid=Math.round(fresh*(0.35+r()*0.3));
+    inbox[`${p.id}|${ch}`]={new:fresh, paid, organic:Math.max(0,fresh-paid), active:Math.round(fresh*(1.3+r()*0.4)), msgsIn:Math.round(fresh*(4+r()*3)), source:'conversations'};
+  }
+  return {period:id, ...meta, pages:DEMO_PAGES, items, demographics, inbox, warnings:[]};
 }
 function fakeDemo(seed, page, src, loc){
   const r = rng(hash(seed));

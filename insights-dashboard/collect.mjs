@@ -157,7 +157,7 @@ export function finalize(items, adsLoaded) {
 export async function collectContent(c, { pages, adAccounts, since, until, concurrency = 6, onStatus = () => {} }) {
   const sinceMs = new Date(`${since}T00:00:00${TZ}`).getTime(), untilMs = new Date(`${until}T23:59:59${TZ}`).getTime();
   const sinceTs = Math.floor(sinceMs / 1000), untilTs = Math.floor(untilMs / 1000);
-  const map = new Map(), warnings = [], adIndex = {};
+  const map = new Map(), warnings = [], adIndex = {}, inboxPaid = {};
   for (const p of pages) {
     onStatus(`${p.name}: ดึงโพสต์ Facebook…`);
     try {
@@ -226,12 +226,81 @@ export async function collectContent(c, { pages, adAccounts, since, until, concu
         it.paid.spend += +r.spend || 0;
         it.paid.eng += av('post_reaction') + av('comment') + av('post') + av('onsite_conversion.post_save');
         it.paid.ads.add(r.ad_id);
-        const k = `${pageId}|${ch}`; (adIndex[k] ||= {}); (adIndex[k][act.id] ||= new Set()).add(r.ad_id);
+        const k = `${pageId}|${ch}`;
+        const conv = av('onsite_conversion.messaging_conversation_started_7d');
+        if (conv) inboxPaid[k] = (inboxPaid[k] || 0) + conv; (adIndex[k] ||= {}); (adIndex[k][act.id] ||= new Set()).add(r.ad_id);
       }
       adsLoaded = true;
     } catch (e) { warnings.push(`Ads ${act.name}: ${e.message}`); c.log(`Ads ${act.name}: ${e.message}`); }
   }
-  return { items: finalize([...map.values()], adsLoaded), adIndex, adsLoaded, warnings };
+  return { items: finalize([...map.values()], adsLoaded), adIndex, adsLoaded, inboxPaid, warnings };
+}
+
+/* ------------------------------ inbox ------------------------------ */
+// Per page × channel (Messenger / IG Direct) for [since, until]:
+//   active  = conversations with ≥ 1 message in the period
+//   new     = conversations whose first message falls in the period
+//   msgsIn  = messages sent by customers in the period
+//   paid    = conversations started from ads (Ads Insights: messaging_conversation_started_7d)
+//   organic = max(0, new − paid)   (estimate)
+// Needs pages_messaging (FB) / instagram_manage_messages (IG). Falls back to Page Insights
+// page_messages_new_conversations_unique for Messenger when the Conversations API is not permitted.
+export async function collectInbox(c, { pages, since, until, inboxPaid = {}, concurrency = 4, onStatus = () => {} }) {
+  const sinceMs = new Date(`${since}T00:00:00${TZ}`).getTime(), untilMs = new Date(`${until}T23:59:59${TZ}`).getTime();
+  const out = {}, warnings = [];
+  for (const p of pages) for (const channel of ['facebook', 'instagram']) {
+    if (channel === 'instagram' && !p.ig) continue;
+    const key = `${p.id}|${channel}`, label = `${p.name} ${channel === 'facebook' ? 'Messenger' : 'IG Direct'}`;
+    const paid = inboxPaid[key] || 0;
+    onStatus(`${label}: ดึง inbox…`);
+    try {
+      const convs = (await c.gAll(`${p.id}/conversations`, { platform: channel === 'facebook' ? 'messenger' : 'instagram', fields: 'id,updated_time', limit: 100 }, p.token,
+        { maxPages: 200, stop: d => d.length && new Date(d[d.length - 1].updated_time).getTime() < sinceMs }))
+        .filter(cv => new Date(cv.updated_time).getTime() >= sinceMs);
+      const selfIds = new Set([p.id, p.ig?.id].filter(Boolean));
+      let active = 0, fresh = 0, msgsIn = 0, done = 0, failed = 0, lastErr = '';
+      await pool(convs, concurrency, async cv => { try {
+        let sawOlder = false, exhausted = true, inRange = 0, inbound = 0;
+        let j = await c.g(`${cv.id}/messages`, { fields: 'created_time,from', limit: 100 }, p.token);
+        for (let pages_ = 0; ; pages_++) {
+          for (const m of j.data || []) {
+            const t = new Date(m.created_time).getTime();
+            if (t < sinceMs) { sawOlder = true; continue; }
+            if (t > untilMs) continue;
+            inRange++; if (!selfIds.has(m.from?.id)) inbound++;
+          }
+          if (sawOlder) break;
+          if (!j.paging?.next) break;
+          if (pages_ >= 20) { exhausted = false; break; }
+          j = await c.g(`${cv.id}/messages`, { fields: 'created_time,from', limit: 100, after: j.paging.cursors?.after }, p.token);
+        }
+        if (inRange) { active++; if (!sawOlder && exhausted) fresh++; msgsIn += inbound; }
+      } catch (e) { failed++; lastErr = e.message; }
+        if (++done % 25 === 0) onStatus(`${label}: ${done}/${convs.length} แชท`);
+      });
+      if (convs.length && failed === convs.length) throw new GraphError(lastErr);
+      if (failed) { warnings.push(`${label}: อ่านไม่ได้ ${failed}/${convs.length} แชท (${lastErr})`); c.log(`${label}: ${failed} แชทอ่านไม่ได้ — ${lastErr}`); }
+      out[key] = { active, new: fresh, msgsIn, paid, organic: Math.max(0, fresh - paid), source: 'conversations', ...(failed ? { note: `อ่านไม่ได้ ${failed}/${convs.length} แชท` } : {}) };
+      c.log(`${label}: ${convs.length} แชทที่อัปเดต, active ${active}, ใหม่ ${fresh}`);
+    } catch (e) {
+      c.log(`${label} conversations: ${e.message}`);
+      if (channel === 'facebook') {
+        try {
+          const j = await c.g(`${p.id}/insights`, { metric: 'page_messages_new_conversations_unique', period: 'day',
+            since: Math.floor(sinceMs / 1000), until: Math.floor(untilMs / 1000) + 1 }, p.token);
+          const vals = j.data?.[0]?.values || [];
+          if (vals.length) {
+            const fresh = vals.reduce((s, v) => s + (+v.value || 0), 0);
+            out[key] = { active: null, new: fresh, msgsIn: null, paid, organic: Math.max(0, fresh - paid), source: 'page_insights' };
+            continue;
+          }
+        } catch (e2) { c.log(`${label} page_messages insights: ${e2.message}`); }
+      }
+      out[key] = { error: e.message + (/permission|\(#10\)|\(#200\)|\(#230\)/i.test(e.message) ? ` — token ต้องมีสิทธิ์ ${channel === 'facebook' ? 'pages_messaging' : 'instagram_manage_messages'}` : ''), paid };
+      warnings.push(`${label} inbox: ${e.message}`);
+    }
+  }
+  return { inbox: out, warnings };
 }
 
 /* ------------------------------ demographics ------------------------------ */
@@ -289,7 +358,9 @@ export async function fetchDemographic(c, acc, src, loc, { adIndex = {}, since, 
 /* ------------------------------ snapshot ------------------------------ */
 /** Build a serializable snapshot for one period (used by the sync job). */
 export async function buildSnapshot(c, { pages, adAccounts, period, since, until, demographics = true, onStatus = () => {} }) {
-  const { items, adIndex, adsLoaded, warnings } = await collectContent(c, { pages, adAccounts, since, until, onStatus });
+  const { items, adIndex, adsLoaded, inboxPaid, warnings } = await collectContent(c, { pages, adAccounts, since, until, onStatus });
+  const ib = await collectInbox(c, { pages, since, until, inboxPaid, onStatus });
+  warnings.push(...ib.warnings);
   const demo = {};
   if (demographics) {
     for (const p of pages) for (const channel of ['facebook', 'instagram']) {
@@ -310,6 +381,7 @@ export async function buildSnapshot(c, { pages, adAccounts, period, since, until
       paid: { views: it.paid.views, eng: it.paid.eng, spend: Math.round(it.paid.spend * 100) / 100, reach: it.paid.reach, ads: it.paid.ads.size },
     })),
     demographics: demo,
+    inbox: ib.inbox,
   };
 }
 

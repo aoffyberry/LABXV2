@@ -52,7 +52,7 @@ GitHub Actions (ทุกวัน 03:17 น.)            Netlify (static)
 ## Token ที่แนะนำ (FB_GRAPH_TOKEN)
 - **System User token** จาก Business Manager (ไม่หมดอายุ) ที่ได้สิทธิ์เพจ LABX, ปักปากกา และบัญชีโฆษณา
 - หรือ User token จาก [Graph API Explorer](https://developers.facebook.com/tools/explorer/) (แปลงเป็น long-lived 60 วันได้)
-- Permissions: `pages_show_list`, `pages_read_engagement`, `read_insights`, `instagram_basic`, `instagram_manage_insights`, `ads_read`, `business_management`
+- Permissions: `pages_show_list`, `pages_read_engagement`, `read_insights`, `instagram_basic`, `instagram_manage_insights`, `ads_read`, `business_management`, `pages_messaging` + `instagram_manage_messages` (สำหรับ Inbox)
 
 ## แท็บ
 
@@ -63,6 +63,21 @@ GitHub Actions (ทุกวัน 03:17 น.)            Netlify (static)
 | **Content Ranking** | ตารางรายคอนเทนต์ Top 50 / Top 100 เรียงตาม Views / Engagement / ER, export CSV |
 
 ตัวกรองด้านบนใช้ร่วมกันทุกแท็บ: **Channel** (ทั้งหมด / Facebook / Instagram), **Organic / Paid / รวม**, **เพจ**
+
+## Inbox
+ตาราง **Inbox by Page** (แท็บ Content Performance) + KPI "Inbox แชทใหม่" + ชีต Inbox ใน Excel แยก Messenger / IG Direct ต่อเพจ
+
+| ค่า | ที่มา |
+|---|---|
+| แชทใหม่ | Conversations API — บทสนทนาที่ข้อความแรกอยู่ในช่วงนั้น |
+| จากแอด | Ads Insights `onsite_conversion.messaging_conversation_started_7d` ของแอดเพจ+ช่องทางนั้น |
+| Organic | แชทใหม่ − จากแอด (ประมาณ เพราะ attribution ของแอดนับ 7 วัน) |
+| Active | บทสนทนาที่มีข้อความในช่วงนั้น (รวมแชทเก่าที่กลับมาคุย) |
+| ข้อความจากลูกค้า | จำนวนข้อความขาเข้าในช่วงนั้น |
+| Cost/แชท | Spend ทั้งหมดของเพจ+ช่องทาง ÷ แชทจากแอด (blended) |
+
+- ต้องมีสิทธิ์ `pages_messaging` (Messenger) และ `instagram_manage_messages` (IG) — ถ้าไม่มี ตารางจะแจ้งว่าขาดสิทธิ์อะไร (Messenger จะลอง fallback เป็น Page Insights `page_messages_new_conversations_unique`)
+- เพจที่แชทเยอะ การดึง inbox ใช้ request มาก (อ่านข้อความทุกแชทที่มีความเคลื่อนไหว) — เหมาะกับโหมด Snapshot
 
 ## Export Excel
 ปุ่ม **⬇ Export Excel** (แถบตัวกรอง) ส่งออกช่วงที่เลือกอยู่เป็น `.xlsx` (สร้างในเบราว์เซอร์ ไม่ส่งข้อมูลออกไปไหน)
